@@ -14,7 +14,7 @@ Flask-Mail==0.9.1
 Flask-Migrate==2.5.1
 Flask-SQLAlchemy==2.4.0
 get==2019.4.13
-httpie==1.0.2
+httpie==1.0.3
 idna==2.8
 itsdangerous==1.1.0
 Jinja2==2.10.1
