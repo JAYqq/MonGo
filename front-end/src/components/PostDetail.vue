@@ -596,7 +596,7 @@ export default {
     onClickReply(comment){
       console.log(this.sharedState);
       if(!this.sharedState.is_authenticated){
-        this.$toasted.error("你需要登录以后才能回复");
+        this.$toasted.error("你需要登录以后才能回复",{icon:'fingerprint'});
         this.$router.replace({
           name:"Login",
           query:{redirect:this.$route.path+"#c"+comment.id}
@@ -632,6 +632,35 @@ export default {
           })
         }
       })
+    },
+    onLikeOrUnlike(comment){
+      if(!this.sharedState.is_authenticated){
+        this.$$toasted.error("你需要登录才能点赞或者取消点赞",{icon:'fingerprint'});
+        this.$router.replace({
+          name:'Login',
+          query:{redirect:this.$route.path+'#c'+comment.id}
+        })
+      }
+      let path=""
+      //如果已经点过赞就取消点赞
+      if(comment.likers_id.indexOf(this.sharedState.user_id)!=-1){
+        path=`/comments/unlike/${comment.id}`
+      }else{
+        path=`/comments/like/${comment.id}`
+      }
+      this.$axios.get(path)
+        .then((response)=>{
+          if(response.data.status='success'){
+            this.getPostComments(this.$route.params.id);
+            this.$toasted.success(response.data.message,{icon:'fingerprint'})
+          }else{
+            this.$toasted.success(response.data.message,{icon:'fingerprint'})
+          }
+        })
+        .catch((error)=>{
+          console.log(error.response.data);
+          this.$toasted.error(error.response.data.message,{icon:"fingerprint"})
+        })
     }
   },
   created () {

@@ -84,6 +84,45 @@ def delete_comments(id):
     # cursor.execute(sql)
     return '',204
 
+@bp.route("/comments/like/<int:id>",methods=['GET'])
+@token_auth.login_required
+def like_comment(id):
+    comment=Comment.query.get_or_404(id)
+    if comment:
+        comment.liked_by(g.current_user)
+        db.session.add(comment)
+        db.session.commit()
+        return jsonify({
+            'status':'success',
+            'message':'You are now liking this comment'
+        })
+    else:
+        return jsonify({
+            'status':'fail',
+            'message':'Not have this comment'
+        })
+
+@bp.route("/comments/unlike/<int:id>",methods=['GET'])
+@token_auth.login_required
+def unlike_comment(id):
+    comment=Comment.query.get_or_404(id)
+    if comment:
+        comment.disliked_by(g.current_user)
+        db.session.add(comment)
+        db.session.commit()
+        return jsonify({
+            'status':'success',
+            'message':'You are now not liking this comment'
+        })
+    else:
+        return jsonify({
+            'status':'fail',
+            'message':'Not have this comment'
+        })
+
+
+
+
 
     
 
