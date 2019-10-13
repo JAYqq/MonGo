@@ -29,6 +29,11 @@ import UserFollowedsPostsList from '@/components/Post/UserFollowedsPostsList'
 import Account from '@/components/User/Settings/Account'
 import Email from '@/components/User/Settings/Email'
 import Notification from '@/components/User/Settings/Notification'
+
+//用户通知
+
+import Notifications from '@/components/Notification/Notifications'
+import RecivedComments from '@/components/Notification/RecivedComments'
 Vue.use(Router)
 
 //export 就是一个相当于导出一个模块，这边export那边import
@@ -99,6 +104,17 @@ const router = new Router({
       ],
       meta: {
         requiresAuth: true
+      }
+    },
+    {
+      path:'/notifications',
+      component:Notifications,
+      children:[
+        {path:'',component:Notification},
+        {path:'comments',name:"RecivedComments",component:RecivedComments}
+      ],
+      meta:{
+        requiresAuth:true
       }
     },
     {

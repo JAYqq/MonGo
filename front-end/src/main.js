@@ -13,7 +13,10 @@ import moment from 'moment'
 import './assets/core.css'
 import './assets/custom.css'
 
+
+// 字体图标
 import './assets/icon-line/css/simple-line-icons.css'
+import './assets/icon-line-pro/style.css'
 import './assets/icon-material/material-icons.css'
 
 // bootstrap-markdown 编辑器需要的样式

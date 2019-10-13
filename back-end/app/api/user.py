@@ -207,3 +207,29 @@ def delete_user(id):
     db.session.delete(user)
     db.session.commit()
     return '',204
+
+
+@bp.route('/users/<int:id>/reveived_comment',methods=['GET'])
+@token_auth.login_required
+def get_user_receive_comment(id):
+    user=User.query.get_or_404(id)
+    if user!=g.current_user:
+        return error_response(403)
+    page=request.args.get('page',1,type=int)
+    per_page=min(
+        request.args.get(
+            'per_page',current_app.config['COMMENTS_PER_PAGE'],type=int),100)
+    user_ids=[post.id for post in g.current_user.posts.all()]
+
+    #获取所有被评论了的文章的所有评论
+    data=Comment.to_collection_dict(
+        Comment.query.filter(Comment.post_id.in_(user_ids),Comment.author!=g.current_user)
+        .order_by(Comment.ifread,Comment.timestamp.desc()),page,per_page,'api.get_user_receive_comment',id=id
+    )
+    last_read_time=user.last_received_comment_read_time or datetime(1998,1,1)
+    for item in data['items']:
+        if item.timestamp>last_read_time:
+            item['is_new']=True
+    user.last_received_comment_read_time=datetime.utcnow()
+    db.session.commit()
+    return jsonify(data)

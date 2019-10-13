@@ -49,9 +49,9 @@ class User(PaginatedAPIMixin, db.Model):
     about_me=db.Column(db.Text())
     member_since=db.Column(db.DateTime(),default=datetime.utcnow)
     last_seen=db.Column(db.DateTime(),default=datetime.utcnow)
+    last_received_comment_read_time=db.Column(db.DateTime())
     # cascade 用于级联删除，当删除user时，该user下面的所有posts都会被级联删除
     posts=db.relationship('Post',backref='author',lazy="dynamic",cascade='all, delete-orphan')
-
     '''self.followeds是当前用户的关注的人
        self.followers是当前用户的粉丝'''
     followeds = db.relationship(

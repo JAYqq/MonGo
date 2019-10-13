@@ -7,7 +7,6 @@ from flask import request,jsonify,current_app,g,url_for
 @bp.route("/comments/",methods=['POST'])
 @token_auth.login_required
 def create_comment():
-    print("hahah")
     data=request.get_json()
     print(data)
     if not data:
