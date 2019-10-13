@@ -27,6 +27,9 @@
         </form>
 
         <ul v-if="sharedState.is_authenticated" class="nav navbar-nav navbar-right">
+          <li class="nav-item g-mr-20">
+            <router-link v-bind:to="{ path: '/notifications/comments' }" class="nav-link"><i class="icon-education-033 u-line-icon-pro g-color-red  g-font-size-16 g-pos-rel g-top-2 g-mr-3"></i> Notifications <span id="new_notifications_count" style="visibility: hidden;" class="u-label g-font-size-11 g-bg-aqua g-rounded-20 g-px-10">0</span></router-link>
+          </li>
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
               <img v-bind:src="sharedState.user_avatar"> {{ sharedState.user_name }}
