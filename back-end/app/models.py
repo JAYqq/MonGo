@@ -3,7 +3,9 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask import url_for,current_app
 from datetime import datetime,timedelta
 from hashlib import md5
+from time import time
 import os
+import json
 import base64
 import jwt
 class PaginatedAPIMixin(object):#用户集合
@@ -28,7 +30,6 @@ class PaginatedAPIMixin(object):#用户集合
             }
         }
         return data
-
 
 followers = db.Table(
     'followers',
@@ -61,7 +62,7 @@ class User(PaginatedAPIMixin, db.Model):
         backref=db.backref('followers', lazy='dynamic'), lazy='dynamic')
     
     comments=db.relationship("Comment",backref="author",lazy="dynamic",cascade='all, delete-orphan')
-
+    notification=db.relationship("Notification",backref="author",lazy="dynamic",cascade='all,delete-orphan')
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
@@ -280,6 +281,41 @@ class Comment(db.Model,PaginatedAPIMixin):
         }
         return data
         
+class Notification(db.Model):
+    __tablename__="notification"
+    id=db.Column(db.Integer,primary_key=True)
+    name=db.Column(db.String(128),index=True)
+    user_id=db.Column(db.Integer,db.ForeignKey('users.id'))
+    timestamp=db.Column(db.Float,index=True,default=time)
+    payload_json=db.Column(db.Text)
+
+    def get_data(self):
+        return json.loads(str(self.payload_json))
+    
+    def to_dict(self):
+        data = {
+            'id': self.id,
+            'name': self.name,
+            'user': {
+                'id': self.user.id,
+                'username': self.user.username,
+                'name': self.user.name,
+                'avatar': self.user.avatar(128)
+            },
+            'timestamp': self.timestamp,
+            'payload': self.get_data(),
+            '_links': {
+                'self': url_for('api.get_notification', id=self.id),
+                'user_url': url_for('api.get_user', id=self.user_id)
+            }
+        }
+        return data
+    def from_dict(self, data):
+        for field in ['body', 'timestamp']:
+            if field in data:
+                setattr(self, field, data[field])
+    def __repr__(self):
+        return '<Notification {}>'.format(self.id)
 ## body 字段有变化时，执行 on_changed_body() 方法
 db.event.listen(Post.body, 'set', Post.on_changed_body)
 
