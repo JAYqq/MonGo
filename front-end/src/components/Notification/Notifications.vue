@@ -27,7 +27,7 @@
           <!-- 左边侧边栏 -->
           <ul class="list-unstyled mb-0">
             <li class="g-pb-3">
-              <router-link v-bind:to="{ name: 'SettingProfile' }" v-bind:active-class="'active g-color-primary--active g-bg-gray-light-v5--active'" class="d-block align-middle u-link-v5 g-color-text g-color-primary--hover g-bg-gray-light-v5--hover rounded g-pa-3">
+              <router-link v-bind:to="{ name: 'RecivedComments' }" v-bind:active-class="'active g-color-primary--active g-bg-gray-light-v5--active'" class="d-block align-middle u-link-v5 g-color-text g-color-primary--hover g-bg-gray-light-v5--hover rounded g-pa-3">
                 <span class="u-icon-v1 g-color-gray-dark-v5 mr-2"><i class="icon-finance-205 u-line-icon-pro"></i></span>
                 Comments
               </router-link>
@@ -80,7 +80,8 @@ export default {
   data () {
     return {
       sharedState: store.state,
-      user: ''
+      user: '',
+      notification_comment:""
     }
   },
   methods: {
@@ -93,13 +94,25 @@ export default {
         })
         .catch((error) => {
           // handle error
-          console.error(error)
+          console.error(error);
         })
-    }
+    },
+    // get_notifications(id){
+    //     const path=`/users/${id}/reveived_comment`
+    //     this.$axios.get(path)
+    //     .then((response)=>{
+    //         this.notification_comment=response.data
+    //         console.log(this.notification_comment);
+    //     })
+    //     .catch((error)=>{
+    //         console.error(error);
+    //     })
+    // }
   },
   created () {
     const user_id = this.sharedState.user_id
     this.getUser(user_id)
+    // this.get_notifications(user_id)
     // tooltip
     $(document).ready(function(){
       $('[data-toggle="tooltip"]').tooltip(); 

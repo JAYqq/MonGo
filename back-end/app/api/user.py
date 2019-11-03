@@ -5,7 +5,7 @@ from app.extensions import db
 from app.api import bp
 #from app.api.auth import token_auth
 from app.api.errors import bad_request,error_response
-from app.models import User,Post
+from app.models import User,Post,Comment
 from app.api.auth import token_auth
 
 @bp.route('/users', methods=['POST'])
@@ -209,11 +209,11 @@ def delete_user(id):
     return '',204
 
 
-@bp.route('/users/<int:id>/reveived_comment',methods=['GET'])
+@bp.route('/users/<int:id>/reveived_comment/',methods=['GET'])
 @token_auth.login_required
 def get_user_receive_comment(id):
     user=User.query.get_or_404(id)
-    if user!=g.current_user:
+    if g.current_user!=user:
         return error_response(403)
     page=request.args.get('page',1,type=int)
     per_page=min(
@@ -228,8 +228,9 @@ def get_user_receive_comment(id):
     )
     last_read_time=user.last_received_comment_read_time or datetime(1998,1,1)
     for item in data['items']:
-        if item.timestamp>last_read_time:
+        if item['timestamp']>last_read_time:
             item['is_new']=True
     user.last_received_comment_read_time=datetime.utcnow()
     db.session.commit()
+    print(data)
     return jsonify(data)
