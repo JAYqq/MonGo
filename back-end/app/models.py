@@ -83,7 +83,20 @@ class User(PaginatedAPIMixin, db.Model):
         '''取消关注'''
         if self.is_following(user):
             self.followeds.remove(user)
-    
+
+    def new_received_comments(self):
+        user_post_ids=[post.id for post in self.posts]
+        #获取所有的评论信息
+        received_comments=Comment.query.filter(Comment.id.in_(user_post_ids),Comment.author_id!=self.id,Comment.ifread==True).order_by(Comment.timestamp.desc()).count()
+        return received_comments
+        
+    def add_new_notification(self,name,data):
+        '''用户增加通知'''
+        #删除具有相同name的通知
+        self.notification.filter_by(name=name).delete()
+        noti=Notification(name=name,payload_json=json.dumps(data),user_id=self.id)
+        db.session.add(noti)
+        return noti
     @property
     def followed_posts(self):
         '''获取当前用户关注者所有的文章'''

@@ -24,6 +24,8 @@ def create_comment():
     comment.author=g.current_user
     comment.post=post
     db.session.add(comment)
+    post.author.add_new_notification("unread_recived_comments_count",
+                                    post.author.new_received_comments())
     db.session.commit()
     response=jsonify(comment.to_dict())
     print(response)
@@ -77,7 +79,7 @@ def delete_comments(id):
     # comment=Comment.query.get_or_404(id)
     if g.current_user!=comment.author and g.current_user!=comment.post.author:
         return error_response(403)
-    # sql="delete from comments where id=%d"%(int(id))
+    comment.post.author.add_new_notification('unread_recived_comments_count',comment.post.author.new_received_comments())
     db.session.delete(comment)
     db.session.commit()
     # cursor.execute(sql)
@@ -119,6 +121,19 @@ def unlike_comment(id):
             'message':'Not have this comment'
         })
 
+@bp.route("/comments/removemark/<int:id>",methods=["GET"])
+@token_auth.login_required
+def dismark(id):
+    comment=Comment.query.get_or_404(id)
+    if not comment:
+        return error_response("404")
+    comment.ifread=True
+    db.session.add(comment)
+    db.session.commit()
+    return jsonify({
+        'status':'success',
+        'message':'Mark as read successlly'
+        })
 
 
 
