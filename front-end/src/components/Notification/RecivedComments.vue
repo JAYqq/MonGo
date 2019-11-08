@@ -43,7 +43,6 @@
         </div>
       </div>
       <!-- End Panel Header -->
-
       <!-- Panel Body -->
       <div v-if="comments" class="card-block g-pa-0" >
         
@@ -88,7 +87,7 @@
               </li>
 
               <ul class="list-inline mb-0 ml-auto">
-                <li v-if="!comment.ifread" class="list-inline-item ml-auto">
+                <li v-if="comment.ifread==false" class="list-inline-item ml-auto">
                   <a v-on:click="onMarkRead(comment)" class="u-link-v5 g-color-red g-color-aqua--hover" href="javascript:;">
                     <i class="icon-check g-pos-rel g-top-1 g-mr-3"></i>
                     标为已读
@@ -181,7 +180,15 @@ export default {
         })
       },
       onMarkRead(comment){
-        
+        const path=`/comments/removemark/${comment.id}`
+        this.$axios.get(path)
+        .then((response)=>{
+          console.log(response.data)
+          this.getUserRecivedComments(this.sharestate.user_id)
+        })
+        .catch((error)=>{
+          console.error(error)
+        })
       }
     },
     created(){
