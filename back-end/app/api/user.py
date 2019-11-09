@@ -145,7 +145,7 @@ def get_followeds(id):
         res=db.engine.execute(
             "select * from followers where follower_id={} and followed_id={}".format(user.id,item['id'])
         )
-        item['timestamp']=datetime.strptime(list(res)[0][2], '%Y-%m-%d %H:%M:%S.%f')
+        item['timestamp']=datetime.strptime(str(list(res)[0][2]), '%Y-%m-%d %H:%M:%S')
     return jsonify(data)
 
 @bp.route('/users/<int:id>/followers/', methods=['GET'])
@@ -168,7 +168,7 @@ def get_followers(id):
             "select * from followers where follower_id={} and followed_id={}".
             format(item['id'], user.id))
         item['timestamp'] = datetime.strptime(
-            list(res)[0][2], '%Y-%m-%d %H:%M:%S.%f')
+            str(list(res)[0][2]), '%Y-%m-%d %H:%M:%S')
     return jsonify(data)
 
 @bp.route('/users/<int:id>/followeds-posts',methods=['GET'])
