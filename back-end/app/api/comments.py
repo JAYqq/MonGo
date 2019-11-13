@@ -85,7 +85,6 @@ def delete_comments(id):
     # cursor.execute(sql)
     return '',204
 
-<<<<<<< HEAD
 @bp.route("/comments/like/<int:id>",methods=['GET'])
 @token_auth.login_required
 def like_comment(id):
@@ -138,8 +137,6 @@ def dismark(id):
 
 
 
-=======
->>>>>>> 6f0e285168c061b7eb7e873b3de2275691c36313
 
     
 

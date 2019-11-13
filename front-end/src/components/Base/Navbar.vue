@@ -74,6 +74,8 @@ export default {
   mounted(){
     $(function(){
       let since=0
+      let total_notifications_count = 0 //总通知
+      let unread_recived_comments_count = 0 //没有读过的评论
       if(window.localStorage.getItem('masonblog-token')){
         const payload=JSON.parse(atob(window.localStorage.getItem('masonblog-token').split('.')[1]))
         const user_id=payload.user_id
@@ -82,11 +84,24 @@ export default {
           axios.get(path)
           .then((response)=>{
             console.log(response.data)
+            for(var i=0;i<response.data.length;i++){
+              switch(response.data[i].name){
+                case "unread_recived_comments_count":
+                  console.log("asdasd")
+                  unread_recived_comments_count =response.data[i].payload
+                  break
+              }
+              since=response.data[i].timestamp
+            }
+            console.log(unread_recived_comments_count)
+            total_notifications_count = unread_recived_comments_count
+            $('#new_notifications_count').text(total_notifications_count)
+            $('#new_notifications_count').css('visibility', total_notifications_count ? 'visible' : 'hidden');
           })
           .catch((error)=>{
             console.error(error)
           })
-        },5000)
+        },10000)
       }
     })
   }

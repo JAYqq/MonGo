@@ -255,7 +255,6 @@ class Comment(db.Model,PaginatedAPIMixin):
         for filed in ['body','ifread','timestamp','disabled','author_id','post_id','parent_id']:
             if filed in data:
                 setattr(self,filed,data[filed])
-<<<<<<< HEAD
     def is_liked_by(self,user):
         return user in self.likers
     def liked_by(self,user):
@@ -264,9 +263,7 @@ class Comment(db.Model,PaginatedAPIMixin):
     def disliked_by(self,user):
         if self.is_liked_by(user):
             self.likers.remove(user)
-=======
     
->>>>>>> 6f0e285168c061b7eb7e873b3de2275691c36313
     def to_dict(self):
         data = {
             'id': self.id,
