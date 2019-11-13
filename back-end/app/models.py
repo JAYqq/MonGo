@@ -310,15 +310,15 @@ class Notification(db.Model):
             'id': self.id,
             'name': self.name,
             'user': {
-                'id': self.user.id,
-                'username': self.user.username,
-                'name': self.user.name,
-                'avatar': self.user.avatar(128)
+                'id': self.author.id,
+                'username': self.author.username,
+                'name': self.author.name,
+                'avatar': self.author.avatar(128)
             },
             'timestamp': self.timestamp,
             'payload': self.get_data(),
             '_links': {
-                'self': url_for('api.get_notification', id=self.id),
+                'self': url_for('api.get_new_notification', id=self.id),
                 'user_url': url_for('api.get_user', id=self.user_id)
             }
         }
