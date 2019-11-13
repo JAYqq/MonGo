@@ -85,12 +85,11 @@ export default {
                     'password':this.loginForm.password
                 }
             }).then((response) => {
-                console.log("ok")
                 window.localStorage.setItem('masonblog-token',response.data.token)
                 // store.resetNotNewAction()
                 store.loginAction()
-
-                const name=JSON.parse(atob(response.data.token.split('.')[1])).name
+                console.log(JSON.parse(atob(response.data.token.split('.')[1])));
+                const name=JSON.parse(atob(response.data.token.split('.')[1])).user_name
                 this.$toasted.success(`Welcome ${name}!`,{icon:'fingerprint'})
 
                 if(typeof this.$route.query.redirect=='undefined'){

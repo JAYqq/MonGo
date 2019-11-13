@@ -5,7 +5,7 @@ from app.extensions import db
 from app.api import bp
 #from app.api.auth import token_auth
 from app.api.errors import bad_request,error_response
-from app.models import User,Post,Comment
+from app.models import User,Post,Comment,Notification
 from app.api.auth import token_auth
 
 @bp.route('/users', methods=['POST'])
@@ -239,3 +239,15 @@ def get_user_receive_comment(id):
     db.session.commit()
     print(data)
     return jsonify(data)
+
+@bp.route('/users/<int:id>/notifications/',methods=['GET'])
+@token_auth.login_required
+def get_user_notification(id):
+	user=User.query.get_or_404(id)
+	if user!=g.current_user:
+		return error_response(403)
+	since=request.args.get('since',0.0,type=float)
+	notifications=user.notification.filter(
+	Notification.timestamp>since).order_by(Notification.timestamp.asc())
+	return jsonify([n.to_dict()for n in notifications])
+

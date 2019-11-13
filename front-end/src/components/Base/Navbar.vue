@@ -55,6 +55,7 @@
 
 <script>
 import store from '../../store'
+import axios from 'axios'
 export default {
   name: "Navbar", //name of component
   data(){
@@ -68,6 +69,26 @@ export default {
       this.$toasted.show('You have been logged out.',{icon:'fingerprint'})
       this.$router.push('/login')
     }
+  },
+  //模板渲染完成以后
+  mounted(){
+    $(function(){
+      let since=0
+      if(window.localStorage.getItem('masonblog-token')){
+        const payload=JSON.parse(atob(window.localStorage.getItem('masonblog-token').split('.')[1]))
+        const user_id=payload.user_id
+        setInterval(function(){
+          const path=`/users/${user_id}/notifications/?since=${since}`
+          axios.get(path)
+          .then((response)=>{
+            console.log(response.data)
+          })
+          .catch((error)=>{
+            console.error(error)
+          })
+        },5000)
+      }
+    })
   }
 };
 </script>
