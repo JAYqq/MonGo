@@ -237,17 +237,15 @@ def get_user_receive_comment(id):
         num=user.new_received_comments()-data['_meta']['page']*data['_meta']['page']
         user.add_new_notification("unread_recived_comments_count",num)
     db.session.commit()
-    print(data)
     return jsonify(data)
 
 @bp.route('/users/<int:id>/notifications/',methods=['GET'])
 @token_auth.login_required
 def get_user_notification(id):
-	user=User.query.get_or_404(id)
-	if user!=g.current_user:
-		return error_response(403)
-	since=request.args.get('since',0.0,type=float)
-	notifications=user.notification.filter(
-	Notification.timestamp>since).order_by(Notification.timestamp.asc())
-	return jsonify([n.to_dict()for n in notifications])
+    user=User.query.get_or_404(id)
+    if user!=g.current_user:
+        return error_response(403)
+    since=request.args.get('since',0.0,type=float)
+    notifications=user.notification.filter(Notification.timestamp>since).order_by(Notification.timestamp.asc())
+    return jsonify([n.to_dict()for n in notifications])
 

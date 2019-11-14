@@ -125,6 +125,7 @@ def unlike_comment(id):
 @token_auth.login_required
 def dismark(id):
     comment=Comment.query.get_or_404(id)
+    # print(comment.body)
     if not comment:
         return error_response("404")
     comment.ifread=True

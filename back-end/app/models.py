@@ -85,10 +85,13 @@ class User(PaginatedAPIMixin, db.Model):
             self.followeds.remove(user)
 
     def new_received_comments(self):
-        user_post_ids=[post.id for post in self.posts]
+        user_post_ids=[post.id for post in self.posts.all()]
+        last_read_time = self.last_received_comment_read_time or datetime(1900, 1, 1)
+        print(user_post_ids)
         #获取所有的评论信息
-        received_comments=Comment.query.filter(Comment.id.in_(user_post_ids),Comment.author_id!=self.id,Comment.ifread==True).order_by(Comment.timestamp.desc()).count()
-        return received_comments
+        received_comments=Comment.query.filter(Comment.post_id.in_(user_post_ids),Comment.author!=self,Comment.ifread==False).order_by(Comment.timestamp.desc())
+        print(received_comments.filter(Comment.timestamp > last_read_time).count(),"--------------------------")
+        return received_comments.filter(Comment.timestamp > last_read_time).count()
         
     def add_new_notification(self,name,data):
         '''用户增加通知'''
