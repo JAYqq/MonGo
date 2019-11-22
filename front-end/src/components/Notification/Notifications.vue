@@ -30,10 +30,11 @@
               <router-link v-bind:to="{ name: 'RecivedComments' }" v-bind:active-class="'active g-color-primary--active g-bg-gray-light-v5--active'" class="d-block align-middle u-link-v5 g-color-text g-color-primary--hover g-bg-gray-light-v5--hover rounded g-pa-3">
                 <span class="u-icon-v1 g-color-gray-dark-v5 mr-2"><i class="icon-finance-205 u-line-icon-pro"></i></span>
                 Comments
+                <span v-if="notifications.unread_recived_comments_count" class="u-label g-font-size-11 g-bg-pink g-rounded-20 g-px-8 g-ml-15">{{ notifications.unread_recived_comments_count }}</span>
               </router-link>
             </li>
             <li class="g-py-3">
-              <router-link v-bind:to="{ name: 'SettingAccount' }" v-bind:active-class="'active g-color-primary--active g-bg-gray-light-v5--active'" class="d-block align-middle u-link-v5 g-color-text g-color-primary--hover g-bg-gray-light-v5--hover rounded g-pa-3">
+              <router-link v-bind:to="{ name: 'LikeMe' }" v-bind:active-class="'active g-color-primary--active g-bg-gray-light-v5--active'" class="d-block align-middle u-link-v5 g-color-text g-color-primary--hover g-bg-gray-light-v5--hover rounded g-pa-3">
                 <span class="u-icon-v1 g-color-gray-dark-v5 mr-2"><i class="icon-communication-154 u-line-icon-pro"></i></span>
                 Messages
               </router-link>
@@ -45,7 +46,7 @@
               </router-link>
             </li>
             <li class="g-py-3">
-              <router-link v-bind:to="{ name: 'SettingNotification' }" v-bind:active-class="'active g-color-primary--active g-bg-gray-light-v5--active'" class="d-block align-middle u-link-v5 g-color-text g-color-primary--hover g-bg-gray-light-v5--hover rounded g-pa-3">
+              <router-link v-bind:to="{ name: 'LikeMe'}" v-bind:active-class="'active g-color-primary--active g-bg-gray-light-v5--active'" class="d-block align-middle u-link-v5 g-color-text g-color-primary--hover g-bg-gray-light-v5--hover rounded g-pa-3">
                 <span class="u-icon-v1 g-color-gray-dark-v5 mr-2"><i class="icon-medical-022 u-line-icon-pro"></i></span>
                 Likes
               </router-link>
@@ -81,7 +82,10 @@ export default {
     return {
       sharedState: store.state,
       user: '',
-      notification_comment:""
+      notification_comment:"",
+      notifications:{
+         unread_recived_comments_count:0
+      }
     }
   },
   methods: {
@@ -97,26 +101,39 @@ export default {
           console.error(error);
         })
     },
-    // get_notifications(id){
-    //     const path=`/users/${id}/reveived_comment`
-    //     this.$axios.get(path)
-    //     .then((response)=>{
-    //         this.notification_comment=response.data
-    //         console.log(this.notification_comment);
-    //     })
-    //     .catch((error)=>{
-    //         console.error(error);
-    //     })
-    // }
+    get_notifications(id){
+        const path=`/users/${id}/notifications/`
+        this.$axios.get(path)
+        .then((response)=>{
+            const notifications=response.data
+            for(var i=0;i<notifications.length;i++){
+              switch (notifications[i].name) {
+                case "unread_recived_comments_count":
+                  console.log("unread")
+                  this.notifications.unread_recived_comments_count=notifications[i].payload
+                  console.log("unread_rececomm"+this.unread_recived_comments_count)
+                  break;
+                default:
+                  break;
+              }
+            }
+        })
+        .catch((error)=>{
+            console.error(error);
+        })
+    }
   },
   created () {
     const user_id = this.sharedState.user_id
     this.getUser(user_id)
-    // this.get_notifications(user_id)
-    // tooltip
+    this.get_notifications(user_id)
     $(document).ready(function(){
       $('[data-toggle="tooltip"]').tooltip(); 
     })
+  },
+  beforeRouteUpdate(to,from,next){
+    next()
+    this.get_notifications(this.sharedState.user_id)
   }
 }
 </script>

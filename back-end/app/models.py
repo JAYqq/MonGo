@@ -89,10 +89,17 @@ class User(PaginatedAPIMixin, db.Model):
         last_read_time = self.last_received_comment_read_time or datetime(1900, 1, 1)
         print(user_post_ids)
         #获取所有的评论信息
-        received_comments=Comment.query.filter(Comment.post_id.in_(user_post_ids),Comment.author!=self,Comment.ifread==False).order_by(Comment.timestamp.desc())
-        print(received_comments.filter(Comment.timestamp > last_read_time).count(),"--------------------------")
+        received_comments=Comment.query.filter(Comment.post_id.in_(user_post_ids),Comment.author!=self).order_by(Comment.ifread==False,Comment.timestamp.desc())
         return received_comments.filter(Comment.timestamp > last_read_time).count()
-        
+    def new_received_likes(self):
+        last_read_time = self.last_received_comment_read_time or datetime(1900, 1, 1)
+        comments_alllikes=self.comments.join(comments_likes).all()
+        count=0
+        for item in comments_alllikes:
+            if item.author_id==self.id:
+                if item.timestamp>last_read_time:
+                    count+=1
+        return count
     def add_new_notification(self,name,data):
         '''用户增加通知'''
         #删除具有相同name的通知

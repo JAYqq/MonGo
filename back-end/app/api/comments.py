@@ -91,6 +91,7 @@ def like_comment(id):
     comment=Comment.query.get_or_404(id)
     if comment:
         comment.liked_by(g.current_user)
+        comment.author.add_new_notification("liked_comment_count",comment.author.new_received_likes())
         db.session.add(comment)
         db.session.commit()
         return jsonify({

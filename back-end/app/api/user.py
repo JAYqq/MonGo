@@ -230,11 +230,13 @@ def get_user_receive_comment(id):
     for item in data['items']:
         if item['timestamp']>last_read_time:
             item['is_new']=True
-    if data['_meta']['page']*data['_meta']['page']>user.new_received_comments():
+    if data['_meta']['page']*data['_meta']['per_page']>user.new_received_comments():
+        print("no")
         user.last_received_comment_read_time=datetime.utcnow()
         user.add_new_notification("unread_recived_comments_count",0)
     else:
-        num=user.new_received_comments()-data['_meta']['page']*data['_meta']['page']
+        print("yes")
+        num=user.new_received_comments()-data['_meta']['page']*data['_meta']['per_page']
         user.add_new_notification("unread_recived_comments_count",num)
     db.session.commit()
     return jsonify(data)
