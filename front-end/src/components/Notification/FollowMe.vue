@@ -7,8 +7,8 @@
         class="card-header d-flex align-items-center justify-content-between g-bg-gray-light-v5 border-0 g-mb-15"
       >
         <h3 class="h6 mb-0">
-          <i class="icon-bubbles g-pos-rel g-top-1 g-mr-5"></i> Recived Likes
-          <small v-if="likes">(共 {{ likes.length}} 条, {{ likes.length }} 页)</small>
+          <i class="icon-bubbles g-pos-rel g-top-1 g-mr-5"></i> Follow Me
+          <small v-if="likes">(共 {{ likes._meta.total_items }} 条, {{ likes._meta.total_pages }} 页)</small>
         </h3>
         <div class="dropdown g-mb-10 g-mb-0--md">
           <span
@@ -56,56 +56,73 @@
       <div v-if="likes" class="card-block g-pa-0">
         <div
           class="media g-brd-around g-brd-gray-light-v4 g-pa-30 g-mb-20"
-          v-for="(like, index) in likes.data"
+          v-for="(like, index) in likes.items"
           v-bind:key="index"
         >
-          <router-link v-bind:to="{ path: `/user/${like.from_user}` }">
+          <router-link v-bind:to="{ path: `/user/${like.user.id}` }">
             <span v-if="like.is_new" class="d-inline-block g-pos-rel">
               <span class="u-badge-v2--xs u-badge--top-left g-bg-red g-mt-7 g-ml-7"></span>
               <img
                 class="d-flex g-width-50 g-height-50 rounded-circle g-mt-3 g-mr-15"
-                v-bind:src="like.user_avater_link"
-                v-bind:alt="like.username"
+                v-bind:src="like.user._links.avatar"
+                v-bind:alt="like.user.name || like.user.username"
               />
             </span>
             <img
               v-else
               class="d-flex g-width-50 g-height-50 rounded-circle g-mt-3 g-mr-15"
-              v-bind:src="like.user_avater_link"
-              v-bind:alt="like.username"
+              v-bind:src="like.user._links.avatar"
+              v-bind:alt="like.user.name || like.user.username"
             />
           </router-link>
           <div class="media-body">
-            <div class="g-mb-15" v-if="like.flag=='comment_like'">
+            <div class="g-mb-15">
               <h5 class="h5 g-color-gray-dark-v1 mb-0">
                 <router-link
-                  v-bind:to="{ path: `/user/${like.from_user}` }"
+                  v-bind:to="{ path: `/user/${like.user.id}` }"
                   class="comment-author g-text-underline--none--hover"
-                >{{ like.user_name }}</router-link>
+                >{{ like.user.name || like.user.username }}</router-link>
                 <span class="h6">
-                  点赞了你的评论
-                  <!-- <router-link
+                  点赞了你的
+                  <router-link
                     v-bind:to="{ path: `/post/${like.comment.post.id}#c${like.comment.id}` }"
                     class="g-text-underline--none--hover"
-                  >评论</router-link> -->
+                  >评论</router-link>
                 </span>
               </h5>
               <span
                 class="g-color-gray-dark-v4 g-font-size-12"
               >{{ $moment(like.timestamp).format('YYYY年MM月DD日 HH:mm:ss') }}</span>
             </div>
-            <div v-else clas="g-mb-15">
-              <!-- 如果是收到文章的点赞 -->
-            </div>
-            <div>
+
+            <div v-if="like.comment.disabled" class="g-color-red g-mb-15">此评论包含不良信息，已被禁止显示.</div>
+            <div v-else>
               <!-- vue-markdown 开始解析markdown，它是子组件，通过 props 给它传值即可
-              v-highlight 是自定义指令，用 highlight.js 语法高亮 -->
-              <vue-markdown
-                :source="like.body"
-                class="markdown-body g-mb-15"
-                v-highlight>
-              </vue-markdown>
+              v-highlight 是自定义指令，用 highlight.js 语法高亮-->
+              <vue-markdown :source="like.comment.body" class="markdown-body g-mb-15" v-highlight></vue-markdown>
             </div>
+
+            <ul class="list-inline d-sm-flex my-0">
+              <li v-if="!like.comment.disabled" class="list-inline-item g-mr-20">
+                <span class="u-link-v5 g-color-gray-dark-v4 g-color-primary--hover">
+                  <i
+                    v-bind:class="{ 'g-color-red': like.comment.likers_id.indexOf(sharedState.user_id) != -1 }"
+                    class="icon-like g-pos-rel g-top-1 g-mr-3"
+                  ></i>
+                  <span>{{ like.comment.likers_id.length }} 人赞</span>
+                </span>
+              </li>
+              <li class="list-inline-item g-mr-20">
+                <router-link
+                  v-bind:to="{ path: `/post/${like.comment.post.id}#c${like.comment.id}` }"
+                  class="u-link-v5 g-color-gray-dark-v4 g-color-primary--hover"
+                  href="javascript:;"
+                >
+                  <i class="icon-action-redo g-pos-rel g-top-1 g-mr-3"></i>
+                  查看对话
+                </router-link>
+              </li>
+            </ul>
           </div>
         </div>
       </div>
@@ -113,51 +130,13 @@
     </div>
 
     <!-- Pagination #04 -->
-    <!-- <div v-if="likes && likes._meta.total_pages > 1">
+    <div v-if="likes && likes._meta.total_pages > 1">
       <pagination
         v-bind:cur-page="likes._meta.page"
         v-bind:per-page="likes._meta.per_page"
         v-bind:total-pages="likes._meta.total_pages"
       ></pagination>
-    </div> -->
+    </div>
     <!-- End Pagination #04 -->
   </div>
 </template>
-<script>
-import store from "./../../store"
-import VueMarkdown from 'vue-markdown'
-import Pagination from '../Base/Pagination'
-// bootstrap-markdown 编辑器依赖的 JS 文件，初始化编辑器在组件的 created() 方法中，同时它需要 JQuery 支持哦
-import '../../assets/bootstrap-markdown/js/bootstrap-markdown.js'
-import '../../assets/bootstrap-markdown/js/bootstrap-markdown.zh.js'
-import '../../assets/bootstrap-markdown/js/marked.js'
-export default {
-  name:'LikeMe',
-  data(){
-    return{
-      shareState:store.state,
-      likes:""
-    }
-  },
-  components:{
-    VueMarkdown,
-    Pagination
-  },
-  methods:{
-    get_notifications(id){
-      const path=`/users/${id}/likes/`
-      this.$axios.get(path)
-      .then((response)=>{
-          this.likes=response.data
-          console.log(this.likes)
-        })
-      .catch((error)=>{
-          console.error(error);
-      })  
-    }
-  },
-  created(){
-    this.get_notifications(this.shareState.user_id)
-  }
-}
-</script>

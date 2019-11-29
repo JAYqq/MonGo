@@ -107,6 +107,7 @@ def follow(id):
     if g.current_user.is_following(user):
         return bad_request("You have already followed that user!")
     g.current_user.follow(user)
+    g.current_user.add_new_notification("followme",)
     db.session.commit()
     return jsonify({
         'status':'success',
@@ -232,12 +233,12 @@ def get_user_receive_comment(id):
             item['is_new']=True
     if data['_meta']['page']*data['_meta']['per_page']>user.new_received_comments():
         print("no")
-        user.last_received_comment_read_time=datetime.utcnow()
         user.add_new_notification("unread_recived_comments_count",0)
     else:
         print("yes")
         num=user.new_received_comments()-data['_meta']['page']*data['_meta']['per_page']
         user.add_new_notification("unread_recived_comments_count",num)
+    user.last_received_comment_read_time=datetime.utcnow()
     db.session.commit()
     return jsonify(data)
 
@@ -250,4 +251,32 @@ def get_user_notification(id):
     since=request.args.get('since',0.0,type=float)
     notifications=user.notification.filter(Notification.timestamp>since).order_by(Notification.timestamp.asc())
     return jsonify([n.to_dict()for n in notifications])
+
+@bp.route("/users/<int:id>/likes/",methods=["GET"])
+def get_user_post_likes(id):
+    page=request.args.get('page',1,type=int)
+    per_page=min(
+        request.args.get(
+            'per_page',current_app.config['COMMENTS_PER_PAGE'],type=int),100)
+    user=User.query.get(id)
+    data=user.new_posts_like_info()
+    last_read_time=user.last_received_likes_read_time or datetime(1998,1,1)
+    #标记哪些是最新
+    data['length']=len(data['data'])
+    for item in data['data']:
+        if item['timestamp']>last_read_time:
+            item['is_new']=True
+        else:
+            item['is_new']=False
+    print(data)
+    if page*per_page>user.new_received_likes():
+        user.add_new_notification("liked_comment_count",0)
+    else:
+        num=user.new_received_likes()-page*per_page
+        user.add_new_notification("liked_comment_count",num)
+    user.last_received_likes_read_time=datetime.utcnow()
+    db.session.commit()
+    return jsonify(data)
+    
+    
 

@@ -34,13 +34,13 @@
               </router-link>
             </li>
             <li class="g-py-3">
-              <router-link v-bind:to="{ name: 'LikeMe' }" v-bind:active-class="'active g-color-primary--active g-bg-gray-light-v5--active'" class="d-block align-middle u-link-v5 g-color-text g-color-primary--hover g-bg-gray-light-v5--hover rounded g-pa-3">
+              <router-link v-bind:to="{ name: 'FollowMe' }" v-bind:active-class="'active g-color-primary--active g-bg-gray-light-v5--active'" class="d-block align-middle u-link-v5 g-color-text g-color-primary--hover g-bg-gray-light-v5--hover rounded g-pa-3">
                 <span class="u-icon-v1 g-color-gray-dark-v5 mr-2"><i class="icon-communication-154 u-line-icon-pro"></i></span>
                 Messages
               </router-link>
             </li>
             <li class="g-py-3">
-              <router-link v-bind:to="{ name: 'SettingEmail' }" v-bind:active-class="'active g-color-primary--active g-bg-gray-light-v5--active'" class="d-block align-middle u-link-v5 g-color-text g-color-primary--hover g-bg-gray-light-v5--hover rounded g-pa-3">
+              <router-link v-bind:to="{ name: 'FollowMe' }" v-bind:active-class="'active g-color-primary--active g-bg-gray-light-v5--active'" class="d-block align-middle u-link-v5 g-color-text g-color-primary--hover g-bg-gray-light-v5--hover rounded g-pa-3">
                 <span class="u-icon-v1 g-color-gray-dark-v5 mr-2"><i class="icon-finance-067 u-line-icon-pro"></i></span>
                 Follows
               </router-link>
@@ -49,6 +49,7 @@
               <router-link v-bind:to="{ name: 'LikeMe'}" v-bind:active-class="'active g-color-primary--active g-bg-gray-light-v5--active'" class="d-block align-middle u-link-v5 g-color-text g-color-primary--hover g-bg-gray-light-v5--hover rounded g-pa-3">
                 <span class="u-icon-v1 g-color-gray-dark-v5 mr-2"><i class="icon-medical-022 u-line-icon-pro"></i></span>
                 Likes
+                <span v-if="notifications.likes_count" class="u-label g-font-size-11 g-bg-pink g-rounded-20 g-px-8 g-ml-15">{{ notifications.likes_count }}</span>
               </router-link>
             </li>
 
@@ -84,7 +85,8 @@ export default {
       user: '',
       notification_comment:"",
       notifications:{
-         unread_recived_comments_count:0
+         unread_recived_comments_count:0,
+         likes_count:0
       }
     }
   },
@@ -106,13 +108,17 @@ export default {
         this.$axios.get(path)
         .then((response)=>{
             const notifications=response.data
+            console.log(response.data)
             for(var i=0;i<notifications.length;i++){
               switch (notifications[i].name) {
                 case "unread_recived_comments_count":
                   console.log("unread")
                   this.notifications.unread_recived_comments_count=notifications[i].payload
-                  console.log("unread_rececomm"+this.unread_recived_comments_count)
+                  console.log("unread_rececomm"+this.notifications.unread_recived_comments_count)
                   break;
+                case "liked_comment_count":
+                  this.notifications.likes_count=notifications[i].payload
+                  console.log(notifications[i].payload)
                 default:
                   break;
               }

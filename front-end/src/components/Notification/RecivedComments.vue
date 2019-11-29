@@ -99,12 +99,12 @@
                     已读
                   </span>
                 </li>
-                <li v-if="!comment.disabled" class="list-inline-item">
+                <!-- <li v-if="!comment.disabled" class="list-inline-item">
                   <button v-on:click="onDisabledComment(comment)" class="btn btn-xs u-btn-outline-purple">屏蔽</button>
                 </li>
                 <li v-if="comment.disabled" class="list-inline-item">
                   <button v-on:click="onEnabledComment(comment)" class="btn btn-xs u-btn-outline-aqua">恢复</button>
-                </li>
+                </li> -->
                 <li class="list-inline-item">
                   <button v-on:click="onDeleteComment(comment)" class="btn btn-xs u-btn-outline-red">删除</button>
                 </li>
@@ -188,6 +188,19 @@ export default {
         })
         .catch((error)=>{
           console.error(error)
+        })
+      },
+      onDeleteComment(comment){
+        console.log(comment)
+        const path=`/comments/${comment.id}`
+        this.$axios.delete(path)
+        .then((responce)=>{
+          console.log(responce.data)
+          this.$toasted.info('Delete Successfully!', { icon: 'fingerprint' })
+          this.getUserRecivedComments(this.sharestate.user_id)
+        })
+        .catch((error)=>{
+          console.log(error)
         })
       }
     },

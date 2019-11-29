@@ -35,6 +35,7 @@ import Notification from '@/components/User/Settings/Notification'
 import Notifications from '@/components/Notification/Notifications'
 import RecivedComments from '@/components/Notification/RecivedComments'
 import Likeme from '@/components/Notification/Likeme'
+import FollowMe from'@/components/Notification/FollowMe'
 Vue.use(Router)
 
 //export 就是一个相当于导出一个模块，这边export那边import
@@ -113,7 +114,8 @@ const router = new Router({
       children:[
         {path:'',component:Notification},
         {path:'comments',name:"RecivedComments",component:RecivedComments},
-        {path:'likeme',name:"LikeMe",component:Likeme}
+        {path:'likeme',name:"LikeMe",component:Likeme},
+        {path:'followme',name:"FollowMe",component:FollowMe}
       ],
       meta:{
         requiresAuth:true

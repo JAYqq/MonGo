@@ -51,6 +51,7 @@ class User(PaginatedAPIMixin, db.Model):
     member_since=db.Column(db.DateTime(),default=datetime.utcnow)
     last_seen=db.Column(db.DateTime(),default=datetime.utcnow)
     last_received_comment_read_time=db.Column(db.DateTime())
+    last_received_likes_read_time=db.Column(db.DateTime())
     # cascade 用于级联删除，当删除user时，该user下面的所有posts都会被级联删除
     posts=db.relationship('Post',backref='author',lazy="dynamic",cascade='all, delete-orphan')
     '''self.followeds是当前用户的关注的人
@@ -91,6 +92,8 @@ class User(PaginatedAPIMixin, db.Model):
         #获取所有的评论信息
         received_comments=Comment.query.filter(Comment.post_id.in_(user_post_ids),Comment.author!=self).order_by(Comment.ifread==False,Comment.timestamp.desc())
         return received_comments.filter(Comment.timestamp > last_read_time).count()
+    
+    #收到新评论点赞
     def new_received_likes(self):
         last_read_time = self.last_received_comment_read_time or datetime(1900, 1, 1)
         comments_alllikes=self.comments.join(comments_likes).all()
@@ -100,9 +103,38 @@ class User(PaginatedAPIMixin, db.Model):
                 if item.timestamp>last_read_time:
                     count+=1
         return count
+    
+    #新的粉丝
+    def new_followers(self):
+        return
+    #文章收到点赞(暂未开发)+发布评论的点赞
+    def new_posts_like_info(self):
+        last_read_time =datetime(1900, 1, 1)
+        all_liked_comments=db.session.query(Comment.body,comments_likes.c.timestamp,comments_likes.c.comment_id,comments_likes.c.user_id).outerjoin(Comment,Comment.id==comments_likes.c.comment_id).all()
+        data={
+            "data":[],
+            "length":0
+        }
+        for item in all_liked_comments:
+            comment=Comment.query.get(item.comment_id)
+            print(comment)
+            if item.user_id!=self.id and comment.author_id==self.id:
+                print("in ",item.timestamp,"  ",last_read_time)
+                temdata={
+                    "flag":"comment_like",
+                    "from_user":item.user_id,
+                    "body":item.body,
+                    "user_name":User.query.get(item.user_id).username,
+                    "user_avater_link":User.query.get(item.user_id).avatar(128),
+                    "timestamp":item.timestamp
+                }
+                data['data'].append(temdata)
+        #按照降序排列
+        data['data'].sort(key=lambda k: k['timestamp'],reverse=True)
+        return data
     def add_new_notification(self,name,data):
         '''用户增加通知'''
-        #删除具有相同name的通知
+        #删除具有相同name的通知,也是更新一下通知
         self.notification.filter_by(name=name).delete()
         noti=Notification(name=name,payload_json=json.dumps(data),user_id=self.id)
         db.session.add(noti)
