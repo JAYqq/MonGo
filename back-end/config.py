@@ -11,6 +11,7 @@ class Config(object):
     SQLALCHEMY_DATABASE_URI="mysql://root:123456@localhost:3306/mongoblog?charset=utf8mb4"
     SQLALCHEMY_TRACK_MODIFICATIONS =False
     SQLALCHEMY_COMMIT_ON_TEARDOWN=True
+    #SQLALCHEMY_ECHO=True
     # MYSQL_URI="mysql+pymysql://root:123456@localhost:3306/mongoblog"
     USERS_PER_PAGE=10
     POSTS_PER_PAGE =10
