@@ -97,13 +97,20 @@ class User(PaginatedAPIMixin, db.Model):
     def new_received_likes(self):
         last_read_time = self.last_received_comment_read_time or datetime(1900, 1, 1)
         comments_alllikes=self.comments.join(comments_likes).all()
+        posts_alllikes=db.session.query(posts_likes).all()
         count=0
         for item in comments_alllikes:
             if item.author_id==self.id:
                 if item.timestamp>last_read_time:
                     count+=1
+        
+        #计算文章收到的新点赞
+        for item in posts_alllikes:
+            post=Post.query.get(item.post_id)
+            if post.author_id==self.id:
+                if item.timestamp>last_read_time:
+                    count+=1
         return count
-    
     #新的粉丝
     def new_followers(self):
         return
@@ -111,6 +118,7 @@ class User(PaginatedAPIMixin, db.Model):
     def new_posts_like_info(self):
         last_read_time =datetime(1900, 1, 1)
         all_liked_comments=db.session.query(Comment.body,comments_likes.c.timestamp,comments_likes.c.comment_id,comments_likes.c.user_id).outerjoin(Comment,Comment.id==comments_likes.c.comment_id).all()
+        all_liked_posts=db.session.query(Post.title,posts_likes.c.user_id,posts_likes.c.post_id,posts_likes.c.timestamp).outerjoin(Post,Post.id==posts_likes.c.post_id).all()
         data={
             "data":[],
             "length":0
@@ -129,6 +137,22 @@ class User(PaginatedAPIMixin, db.Model):
                     "timestamp":item.timestamp
                 }
                 data['data'].append(temdata)
+        
+        for item in all_liked_posts:
+            post=Post.query.get(item.post_id)
+            print(post.title)
+            if item.user_id!=self.id and post.author_id==self.id:
+                tempdata={
+                    "flag":"post_like",
+                    "from_user":item.user_id,
+                    "body":item.title,
+                    "post_id":item.post_id,
+                    "user_name":User.query.get(item.user_id).username,
+                    "user_avater_link":User.query.get(item.user_id).avatar(128),
+                    "timestamp":item.timestamp
+                }
+                data['data'].append(tempdata)
+
         #按照降序排列
         data['data'].sort(key=lambda k: k['timestamp'],reverse=True)
         return data
@@ -229,7 +253,7 @@ class Post(PaginatedAPIMixin,db.Model):
     views=db.Column(db.Integer,default=0)
     author_id=db.Column(db.Integer,db.ForeignKey('users.id'))
     comments=db.relationship("Comment",backref="post",lazy="dynamic",cascade='all, delete-orphan')
-
+    likers=db.relationship("User",secondary="posts_likes",backref=db.backref("liked_posts",lazy="dynamic"))
     @staticmethod
     def on_changed_body(target,value,oldvalue,initiator):
         ## 如果前端不填写摘要，是空str，而不是None
@@ -244,13 +268,23 @@ class Post(PaginatedAPIMixin,db.Model):
             'timestamp': self.timestamp,
             'views': self.views,
             'author': self.author.to_dict(),
+            'likers_id': [user.id for user in self.likers],
             '_links': {
                 'self': url_for('api.get_post', id=self.id),
                 'author_url': url_for('api.get_user', id=self.author_id)
             }
         }
         return data
+    def is_liked_by(self,user):
+        return user in self.likers
 
+    def liked_by(self,user):
+        if not self.is_liked_by(user):
+            self.likers.append(user)
+
+    def disliked_by(self,user):
+        if self.is_liked_by(user):
+            self.likers.remove(user)
 
     def from_dict(self, data):
         for field in ['title', 'summary','body']:
@@ -265,6 +299,12 @@ comments_likes=db.Table(
     db.Column('user_id', db.Integer, db.ForeignKey('users.id')),
     db.Column('comment_id', db.Integer, db.ForeignKey('comments.id')),
     db.Column('timestamp', db.DateTime, default=datetime.utcnow)
+)
+posts_likes=db.Table(
+    'posts_likes',
+    db.Column('user_id',db.Integer,db.ForeignKey('users.id')),
+    db.Column('post_id',db.Integer,db.ForeignKey('posts.id')),
+    db.Column('timestamp',db.DateTime,default=datetime.utcnow)
 )
 class Comment(db.Model,PaginatedAPIMixin):
     __tablename__="comments"

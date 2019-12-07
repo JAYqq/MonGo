@@ -258,7 +258,7 @@ export default {
           this.postForm.summary = '',
           this.postForm.body = ''
           // 必须加个动态参数，不然路由没变化的话，UserPosts 组件不会刷新重新加载博客列表
-          this.$router.push({ name: 'UserPosts', query: { pid: response.data.id } })
+          this.$router.push({ name: 'UserPostsList', query: { pid: response.data.id } })
         })
         .catch((error) => {
           // handle error

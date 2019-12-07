@@ -1920,3 +1920,8 @@ input[type="checkbox"]:checked + * + .g-color-gray-dark-v6--checked {
 .g-font-size-10 {
   font-size: 0.71429rem !important;
 }
+
+.like{
+  width: 20px;
+  height: 20px;
+}

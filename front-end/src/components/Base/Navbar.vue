@@ -91,7 +91,7 @@ export default {
                   console.log("asdasd")
                   unread_recived_comments_count =response.data[i].payload
                   break
-                case "liked_comment_count":
+                case "liked_commentOrpost_count":
                   unread_recived_likes_count=response.data[i].payload
                   break
               }

@@ -114,7 +114,25 @@
             </vue-markdown>
             
           </div>
-
+          <div id="like-post" class="row">
+            <div class="col-lg-3">
+              <button v-on:click="onLikeOrUnlikePost(post)" v-bind:class="btnOutlineColor" class="btn btn-block g-rounded-50 g-py-12 g-mb-10">
+                <i class="icon-heart g-pos-rel g-top-1 g-mr-5"></i> 喜欢<span v-if="post.likers_id && post.likers_id.length > 0"> | {{ post.likers_id.length }}</span>
+              </button>
+            </div>
+            <!-- <div class="col-lg-9">
+              <ul v-if="post.likers" class="list-inline mb-0">
+                <li class="list-inline-item"
+                  v-for="(liker, index) in post.likers" v-bind:key="index">
+                  <router-link
+                    v-bind:to="{ path: `/user/${liker.id}` }"
+                    v-bind:title="liker.name || liker.username">
+                    <img class="g-brd-around g-brd-gray-light-v3 g-pa-2 g-width-40 g-height-40 rounded-circle rounded mCS_img_loaded g-mt-3" v-bind:src="liker.avatar" v-bind:alt="liker.name || liker.username">
+                  </router-link>
+                </li>
+              </ul>
+            </div> -->
+          </div>
         </article>
                 <!-- Pre / Next -->
         <div class="g-mb-60">
@@ -350,6 +368,7 @@
 import store from '../store'
 // 导入 vue-markdown 组件解析 markdown 原文为　HTML
 import VueMarkdown from 'vue-markdown'
+import Pagination from './Base/Pagination'
 // vue-router 从 Home 页路由到 Post 页后，会重新渲染并且会移除事件，自定义的指令 v-highlight 也不生效了
 // 所以，这个页面，在 mounted() 和 updated() 方法中调用 highlightCode() 可以解决代码不高亮问题
 import hljs from 'highlight.js'
@@ -364,7 +383,8 @@ import '../assets/jquery.sticky'
 export default {
   name: 'PostDetail',
   components: {
-    VueMarkdown
+    VueMarkdown,
+    Pagination
   },
   data() {
     return {
@@ -395,12 +415,26 @@ export default {
       }
     }
   },
+  computed:{
+    btnOutlineColor: function () {
+      if (this.sharedState.is_authenticated) {
+        if (this.post.likers_id && this.post.likers_id.indexOf(this.sharedState.user_id) != -1) {
+          return 'u-btn-outline-red'
+        } else {
+          return 'u-btn-outline-primary'
+        }
+      } else {
+        return 'u-btn-outline-primary'
+      }
+    }
+  },
   methods: {
     getPost (id) {
       const path = `/posts/${id}`
       this.$axios.get(path)
         .then((response) => {
           this.post = response.data
+          console.log(this.post)
         })
         .catch((error) => {
           // eslint-disable-next-line
@@ -661,6 +695,34 @@ export default {
           console.log(error.response.data);
           this.$toasted.error(error.response.data.message,{icon:"fingerprint"})
         })
+    },
+    onLikeOrUnlikePost(post){
+      if(!this.sharedState.is_authenticated){
+        this.$$toasted.error("你需要登录才能点赞或者取消点赞",{icon:'fingerprint'});
+        this.$router.replace({
+          name:'Login',
+          query:{redirect:this.$route.path+'#c'+post.id}
+        })
+      }
+      let path=""
+      if(post.likers_id.indexOf(this.sharedState.user_id)!=-1){
+        path=`/posts/${post.id}/dislike/`
+      }else{
+        path=`/posts/${post.id}/like/`
+      }
+      this.$axios.get(path)
+      .then((response)=>{
+        if(response.data.status='success'){
+            this.getPost(this.$route.params.id);
+            // this.$toasted.success(response.data.message,{icon:'fingerprint'})
+          }else{
+            this.$toasted.success(response.data.message,{icon:'fingerprint'})
+          }
+      })
+      .catch((error)=>{
+          console.log(error.response.data);
+          this.$toasted.error(error.response.data.message,{icon:"fingerprint"})
+      })
     }
   },
   created () {

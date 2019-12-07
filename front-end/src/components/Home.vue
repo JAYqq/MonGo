@@ -335,7 +335,6 @@ export default {
       const path=`/posts?page=${page}&per_page=${per_page}`
       this.$axios.get(path)
       .then((response)=>{
-        console.log("进来了")
         console.log(this.sharedState);
         this.posts=response.data
         console.log(this.posts)

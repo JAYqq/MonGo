@@ -116,7 +116,7 @@ export default {
                   this.notifications.unread_recived_comments_count=notifications[i].payload
                   console.log("unread_rececomm"+this.notifications.unread_recived_comments_count)
                   break;
-                case "liked_comment_count":
+                case "liked_commentOrpost_count":
                   this.notifications.likes_count=notifications[i].payload
                   console.log(notifications[i].payload)
                 default:

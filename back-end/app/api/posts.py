@@ -20,6 +20,7 @@ def get_posts():
 @bp.route('/posts',methods=['POST'])
 @token_auth.login_required
 def create_post():
+    '''创建文章'''
     data=request.get_json()
     if not data:
         return bad_request("You must post json data")
@@ -47,6 +48,7 @@ def create_post():
 
 @bp.route('/posts/<int:id>',methods=['GET'])
 def get_post(id):
+    '''获取单篇文章信息'''
     post=Post.query.get_or_404(id)
     post.views+=1
     db.session.add(post)
@@ -79,9 +81,6 @@ def update_post(id):
     return jsonify(post.to_dict())
 
 
-
-    
-
 @bp.route('/posts/<int:id>',methods=['DELETE'])
 @token_auth.login_required
 def delete_post(id):
@@ -97,6 +96,7 @@ def delete_post(id):
 @bp.route("/posts/<int:id>/comments/",methods=["GET"])
 @token_auth.login_required
 def getPostComments(id):
+    '''获取单篇文章评论'''
     post = Post.query.get_or_404(id)
     page=request.args.get("page",1,type=int)
     per_page=min(request.args.get("per_page",current_app.config["COMMENTS_PER_PAGE"],type=int),100)
@@ -109,6 +109,50 @@ def getPostComments(id):
         descendants=[child.to_dict() for child in comment.get_descendants()]
         from operator import itemgetter
         item["descendants"]=sorted(descendants,key=itemgetter('timestamp'))
-    print(data['items'][0])
     return jsonify(data)
+
+@bp.route("/posts/<int:id>/like",methods=["GET"])
+@token_auth.login_required
+def like_post(id):
+    '''点赞文章'''
+    try:
+        post=Post.query.get(id)
+    except expression as identifier:
+        print("Get post fail")
+    if post:
+        post.liked_by(g.current_user)
+        post.author.add_new_notification("liked_commentOrpost_count",post.author.new_received_likes())
+        db.session.add(post)
+        db.session.commit()
+        return jsonify({
+            'status':'success',
+            'message':'You are now liking this posts'
+        })
+    else:
+        return jsonify({
+            'status':'fail',
+            'message':'Not have this post'
+        })
+
+
+@bp.route("/posts/<int:id>/dislike",methods=["GET"])
+@token_auth.login_required
+def dislike_post(id):
+    try:
+        post=Post.query.get(id)
+    except expression as identifier:
+        print("Get post file")
+    if post:
+        post.disliked_by(g.current_user)
+        db.session.add(post)
+        db.session.commit()
+        return jsonify({
+            'status':'success',
+            'message':'You are not liking this posts'
+        })
+    else:
+        return jsonify({
+            'status':'fail',
+            'message':'Dislike fail'
+        })
 

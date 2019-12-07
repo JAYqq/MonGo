@@ -270,10 +270,10 @@ def get_user_post_likes(id):
             item['is_new']=False
     print(data)
     if page*per_page>user.new_received_likes():
-        user.add_new_notification("liked_comment_count",0)
+        user.add_new_notification("liked_commentOrpost_count",0)
     else:
         num=user.new_received_likes()-page*per_page
-        user.add_new_notification("liked_comment_count",num)
+        user.add_new_notification("liked_commentOrpostcount",num)
     user.last_received_likes_read_time=datetime.utcnow()
     db.session.commit()
     return jsonify(data)

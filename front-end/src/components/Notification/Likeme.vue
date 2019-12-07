@@ -96,8 +96,24 @@
             </div>
             <div v-else clas="g-mb-15">
               <!-- 如果是收到文章的点赞 -->
+              <h5 class="h5 g-color-gray-dark-v1 mb-0">
+                <router-link
+                  v-bind:to="{ path: `/user/${like.from_user}` }"
+                  class="comment-author g-text-underline--none--hover"
+                >{{ like.user_name }}</router-link>
+                <span class="h6">
+                  点赞了你的文章
+                  <router-link
+                    v-bind:to="{ path: `/post/${like.post_id}` }"
+                    class="g-text-underline--none--hover"
+                  >{{like.body}}</router-link>
+                </span>
+              </h5>
+              <span
+                class="g-color-gray-dark-v4 g-font-size-12"
+              >{{ $moment(like.timestamp).format('YYYY年MM月DD日 HH:mm:ss') }}</span>
             </div>
-            <div>
+            <div v-if="like.flag=='comment_like'">
               <!-- vue-markdown 开始解析markdown，它是子组件，通过 props 给它传值即可
               v-highlight 是自定义指令，用 highlight.js 语法高亮 -->
               <vue-markdown
@@ -150,10 +166,10 @@ export default {
       .then((response)=>{
           this.likes=response.data
           console.log(this.likes)
-        })
+      })
       .catch((error)=>{
           console.error(error);
-      })  
+      })
     }
   },
   created(){
