@@ -129,13 +129,13 @@
     </div>
 
     <!-- Pagination #04 -->
-    <!-- <div v-if="likes && likes._meta.total_pages > 1">
+    <div v-if="likes && likes._meta.total_pages > 1">
       <pagination
         v-bind:cur-page="likes._meta.page"
         v-bind:per-page="likes._meta.per_page"
         v-bind:total-pages="likes._meta.total_pages"
       ></pagination>
-    </div> -->
+    </div>
     <!-- End Pagination #04 -->
   </div>
 </template>
@@ -160,8 +160,16 @@ export default {
     Pagination
   },
   methods:{
-    get_notifications(id){
-      const path=`/users/${id}/likes/`
+    get_alllikes(id){
+      let page=1
+      let per_page=5
+      if(typeof this.$route.query.page!='undefined'){
+        page=this.$route.query.page
+      }
+      if(typeof this.$route.query.per_page!='undefined'){
+        per_page=this.$route.query.per_page
+      }
+      const path=`/users/${id}/likes/?page=${page}&per_page=${per_page}`
       this.$axios.get(path)
       .then((response)=>{
           this.likes=response.data
@@ -173,7 +181,11 @@ export default {
     }
   },
   created(){
-    this.get_notifications(this.shareState.user_id)
+    this.get_alllikes(this.shareState.user_id)
+  },
+  beforeRouteUpdate(to,from,next){
+    next()
+    this.get_alllikes(this.shareState.user_id)
   }
 }
 </script>

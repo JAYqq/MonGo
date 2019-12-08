@@ -258,8 +258,9 @@ def get_user_post_likes(id):
     per_page=min(
         request.args.get(
             'per_page',current_app.config['COMMENTS_PER_PAGE'],type=int),100)
+    print("page:  ",page,per_page)
     user=User.query.get(id)
-    data=user.new_posts_like_info()
+    data=user.new_posts_like_info(page,per_page,"api.get_user_post_likes",id=id)
     last_read_time=user.last_received_likes_read_time or datetime(1998,1,1)
     #标记哪些是最新
     data['length']=len(data['data'])
@@ -268,7 +269,6 @@ def get_user_post_likes(id):
             item['is_new']=True
         else:
             item['is_new']=False
-    print(data)
     if page*per_page>user.new_received_likes():
         user.add_new_notification("liked_commentOrpost_count",0)
     else:

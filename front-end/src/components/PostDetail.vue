@@ -87,7 +87,8 @@
               <li class="list-inline-item g-mx-10">/</li>
               <li class="list-inline-item g-mr-10">
                 <a class="u-link-v5 g-color-gray-dark-v4 g-color-primary--hover g-text-underline--none--hover" href="#comment-list-wrap">
-                  <i class="icon-bubble"></i> 0
+                  <i class="icon-bubble"></i>
+                  <a id="comment_count">0</a> 
                 </a>
               </li>
               <li class="list-inline-item ml-auto">
@@ -564,10 +565,9 @@ export default {
         .then((response) => {
           // handle success
           this.comments = response.data
-          console.log("comments:"+this.comments);
-          //if (response.data._meta.total_items > 0) {
-          //  this.comments = response.data
-          //}
+          console.log(this.comments.items.length);
+          // console.log($(".icon-bubble"));
+          $("#comment_count").text(this.comments.items.length)
         })
         .catch((error) => {
           // handle error
