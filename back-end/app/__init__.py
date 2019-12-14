@@ -1,7 +1,8 @@
 from flask import Flask
 from app.api import bp as api_bp
 from app.extensions import cors,db,migrate,conn
-
+from redis import Redis
+import rq
 def create_app(config_class=None):
     app = Flask(__name__)
     configure_app(app,config_class)
@@ -23,8 +24,13 @@ def create_app(config_class=None):
     return app
 def configure_app(app,config_class):
     app.config.from_object(config_class)
+
     # 不检查路由中最后是否有斜杠/
     app.url_map.strict_slashes=False
+    #整合RQ任务
+    app.redis = Redis.from_url(app.config['REDIS_URL'])
+    app.task_queue = rq.Queue('mongoblog-tasks', connection=app.redis, default_timeout=3600)  # 设置任务队列中各任务的执行最大超时时间为 1 小时
+
 
 def configure_blueprints(app):
     # 注册 blueprint

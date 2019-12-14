@@ -5,4 +5,4 @@ import pymysql
 db=SQLAlchemy()
 migrate=Migrate()
 cors=CORS()
-conn=pymysql.connect("localhost","root","123456","mongoblog")
+conn=pymysql.connect("localhost","mongo","scw123","mongoblog")
