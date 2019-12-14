@@ -52,6 +52,7 @@ class User(PaginatedAPIMixin, db.Model):
     last_seen=db.Column(db.DateTime(),default=datetime.utcnow)
     last_received_comment_read_time=db.Column(db.DateTime())
     last_received_likes_read_time=db.Column(db.DateTime())
+    last_messages_read_time=db.Column(db.DateTime())
     # cascade 用于级联删除，当删除user时，该user下面的所有posts都会被级联删除
     posts=db.relationship('Post',backref='author',lazy="dynamic",cascade='all, delete-orphan')
     '''self.followeds是当前用户的关注的人
@@ -64,6 +65,13 @@ class User(PaginatedAPIMixin, db.Model):
     
     comments=db.relationship("Comment",backref="author",lazy="dynamic",cascade='all, delete-orphan')
     notification=db.relationship("Notification",backref="author",lazy="dynamic",cascade='all,delete-orphan')
+    messages_sent = db.relationship('Message', foreign_keys='Message.sender_id',
+                                    backref='sender', lazy='dynamic',
+                                    cascade='all, delete-orphan')
+    message_rece=db.relationship('Message',foreign_keys='Message.recipient_id',
+                                    backref='recipient',lazy='dynamic',
+                                    cascade='all,delete-orphan')
+
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
@@ -104,6 +112,7 @@ class User(PaginatedAPIMixin, db.Model):
                 if item.timestamp>last_read_time:
                     count+=1
         
+
         #计算文章收到的新点赞
         for item in posts_alllikes:
             post=Post.query.get(item.post_id)
@@ -111,9 +120,15 @@ class User(PaginatedAPIMixin, db.Model):
                 if item.timestamp>last_read_time:
                     count+=1
         return count
-    #新的粉丝
-    def new_followers(self):
-        return
+
+
+    def new_recived_messages(self):
+        '''用户未读的私信计数'''
+        last_read_time = self.last_messages_read_time or datetime(1900, 1, 1)
+        return Message.query.filter_by(recipient=self).filter(
+            Message.timestamp > last_read_time).count()
+
+    
     #文章收到点赞(暂未开发)+发布评论的点赞
     def new_posts_like_info(self):
         last_read_time =datetime(1900, 1, 1)
@@ -412,6 +427,37 @@ class Notification(db.Model):
                 setattr(self, field, data[field])
     def __repr__(self):
         return '<Notification {}>'.format(self.id)
+
+class Message(db.Model):
+    __tablename__="messages"
+    id=db.Column(db.Integer,primary_key=True)
+    body=db.Column(db.Text)
+    timestamp=db.Column(db.DateTime,index=True,default=datetime.utcnow)
+    sender_id=db.Column(db.Integer,db.ForeignKey('users.id'))
+    recipient_id=db.Column(db.Integer,db.ForeignKey('users.id'))
+
+    #将信息打包好
+    def to_dict(self):
+        data = {
+            'id': self.id,
+            'body': self.body,
+            'timestamp': self.timestamp,
+            'sender': self.sender.to_dict(),
+            'recipient': self.recipient.to_dict(),
+            '_links': {
+                'self': url_for('api.get_message', id=self.id),
+                'sender_url': url_for('api.get_user', id=self.sender_id),
+                'recipient_url': url_for('api.get_user', id=self.recipient_id)
+            }
+        }
+        return data
+
+    def from_dict(self, data):
+        for field in ['body', 'timestamp']:
+            if field in data:
+                setattr(self, field, data[field])
+    def __repr__(self):
+        return '<Message {}>'.format(self.id) 
 ## body 字段有变化时，执行 on_changed_body() 方法
 db.event.listen(Post.body, 'set', Post.on_changed_body)
 

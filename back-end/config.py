@@ -11,6 +11,7 @@ class Config(object):
     SQLALCHEMY_DATABASE_URI="mysql://mongo:scw123@localhost:3306/mongoblog?charset=utf8mb4"
     SQLALCHEMY_TRACK_MODIFICATIONS =False
     SQLALCHEMY_COMMIT_ON_TEARDOWN=True
+    REDIS_URL=os.environ.get('REDIS_URL') or 'redis://'
     #SQLALCHEMY_ECHO=True
     # MYSQL_URI="mysql+pymysql://root:123456@localhost:3306/mongoblog"
     USERS_PER_PAGE=10
