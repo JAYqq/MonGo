@@ -62,7 +62,7 @@
       </div>
     </div>
 
-    <form v-if="sharedState.is_authenticated" @submit.prevent="onSubmitAdd" class="g-mb-40">
+    <form v-if="sharedState.is_authenticated && sharedState.user_perms.includes('write')" @submit.prevent="onSubmitAdd" class="g-mb-40">
       <div class="form-group" v-bind:class="{'u-has-error-v1': postForm.titleError}">
         <input
           type="text"

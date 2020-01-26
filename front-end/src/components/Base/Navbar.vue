@@ -18,6 +18,9 @@
           <li class="nav-item">
             <router-link to="/ping" class="nav-link">Ping</router-link>
           </li>
+          <!-- <li class="nav-item" v-if="sharedState.is_authenticated && sharedState.user_perms.includes('admin')">
+            <router-link to="/admin" class="nav-link">Admin</router-link>
+          </li> -->
         </ul>
         
         <form v-if="sharedState.is_authenticated" class="form-inline navbar-left mr-auto">
@@ -80,7 +83,9 @@ export default {
       if(window.localStorage.getItem('masonblog-token')){
         const payload=JSON.parse(atob(window.localStorage.getItem('masonblog-token').split('.')[1]))
         const user_id=payload.user_id
+        console.log("xiixxi")
         setInterval(function(){
+          console.log("xiixxi")
           const path=`/users/${user_id}/notifications/?since=${since}`
           axios.get(path)
           .then((response)=>{

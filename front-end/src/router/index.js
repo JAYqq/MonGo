@@ -36,8 +36,15 @@ import Notifications from '@/components/Notification/Notifications'
 import RecivedComments from '@/components/Notification/RecivedComments'
 import Likeme from '@/components/Notification/Likeme'
 import FollowMe from'@/components/Notification/FollowMe'
+
+//用户私信
+import MessagesHistory from '@/components/Notification/Message/History'
+import MessagesIndex from '@/components/Notification/Message/Index'
+import RecivedMessages from '@/components/Notification/Message/List'
 Vue.use(Router)
 
+//邮件
+import Unconfirmed from '@/components/User/Auth/Unconfirmed'
 //export 就是一个相当于导出一个模块，这边export那边import
 const router = new Router({
   routes: [
@@ -61,6 +68,14 @@ const router = new Router({
       path: '/register',
       name: 'Register',
       component: Register
+    },
+    {
+      path: '/unconfirmed',
+      name: 'Unconfirmed',
+      component: Unconfirmed,
+      meta: {
+        requiresAuth: true
+      }
     },
     {
       path: '/user/:id',
@@ -114,6 +129,16 @@ const router = new Router({
       children:[
         {path:'',component:Notification},
         {path:'comments',name:"RecivedComments",component:RecivedComments},
+        { 
+          path: 'messages', 
+          component: MessagesIndex,
+          children: [
+            // 默认匹配，哪些人给你发送过私信
+            { path: '', name: 'MessagesIndex', component: RecivedMessages },
+            // 与某个用户之间的全部历史对话记录
+            { path: 'history', name: 'MessagesHistory', component: MessagesHistory }
+          ]
+        },
         {path:'likeme',name:"LikeMe",component:Likeme},
         {path:'followme',name:"FollowMe",component:FollowMe}
       ],
@@ -135,13 +160,31 @@ const router = new Router({
 */
 router.beforeEach((to,form,next) => {
   const token=window.localStorage.getItem('masonblog-token')
+  if (token) {
+    var payload = JSON.parse(atob(token.split('.')[1]))
+  }
   if(to.matched.some(record => record.meta.requiresAuth) && (!token || token === null)){
+    //1. 用户未登录，但想访问需要认证的相关路由时，跳转到 登录 页
     Vue.toasted.show('Please log in to access this page.', { icon: 'fingerprint' })
     next({
       path:'/login',
       query:{redirect:to.fullPath}//添加重定向参数
     })
-  }else if(token&&to.name=='Login'){
+  }else if (token && !payload.confirmed && to.name != 'Unconfirmed') {
+    console.log(payload)
+    // 2. 用户刚注册，但是还没确认邮箱地址时，全部跳转到 认证提示 页面
+    Vue.toasted.show('Please confirm your accout to access this page.', { icon: 'fingerprint' })
+    next({
+      path: '/unconfirmed',
+      query: { redirect: to.fullPath }
+    })
+  } else if (token && payload.confirmed && to.name == 'Unconfirmed') {
+    // 3. 用户账户已确认，但又去访问 认证提示 页面时不让他过去
+    next({
+      path: '/'
+    })
+  }else if(token && (to.name == 'Login' || to.name == 'Register' || to.name == 'ResetPasswordRequest' || to.name == 'ResetPassword')){
+    //用户已登录，但又去访问 登录/注册/请求重置密码/重置密码 页面时不让他过去
     next({
       path:from.fullPath
     })

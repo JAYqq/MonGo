@@ -4,8 +4,11 @@ from app.api import bp
 from app.api.auth import token_auth,basic_auth
 from app.api.errors import bad_request,error_response
 from flask import request,jsonify,current_app,g,url_for
+from app.models import Permission
+from app.utils.decorator import permission_required
 @bp.route("/comments/",methods=['POST'])
 @token_auth.login_required
+@permission_required(Permission.COMMENT)
 def create_comment():
     data=request.get_json()
     print(data)
@@ -77,7 +80,7 @@ def delete_comments(id):
     comment = Comment.query.get_or_404(id)
     print("comment:",comment)
     # comment=Comment.query.get_or_404(id)
-    if g.current_user!=comment.author and g.current_user!=comment.post.author:
+    if g.current_user!=comment.author and g.current_user!=comment.post.author and not g.current_user.can(Permission.ADMIN):
         return error_response(403)
     comment.post.author.add_new_notification('unread_recived_comments_count',comment.post.author.new_received_comments())
     db.session.delete(comment)
@@ -87,6 +90,7 @@ def delete_comments(id):
 
 @bp.route("/comments/like/<int:id>",methods=['GET'])
 @token_auth.login_required
+@permission_required(Permission.COMMENT)
 def like_comment(id):
     comment=Comment.query.get_or_404(id)
     if comment:
@@ -106,6 +110,7 @@ def like_comment(id):
 
 @bp.route("/comments/unlike/<int:id>",methods=['GET'])
 @token_auth.login_required
+@permission_required(Permission.COMMENT)
 def unlike_comment(id):
     comment=Comment.query.get_or_404(id)
     if comment:
