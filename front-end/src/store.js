@@ -8,7 +8,7 @@ export default {
         user_name: window.localStorage.getItem('masonblog-token') ? JSON.parse(atob(window.localStorage.getItem('masonblog-token').split('.')[1])).user_name : '',
         //多加一次atob，这样重新刷新页面也可以计算出user_avater
         user_avatar:window.localStorage.getItem('masonblog-token')?atob(JSON.parse(atob(window.localStorage.getItem('masonblog-token').split('.')[1])).user_avatar) : '',
-        user_perms: window.localStorage.getItem('masonblog-token') ? JSON.parse(atob(window.localStorage.getItem('madblog-token').split('.')[1])).permissions.split(",") : ''
+        user_perms: window.localStorage.getItem('masonblog-token') ? JSON.parse(atob(window.localStorage.getItem('masonblog-token').split('.')[1])).permissions.split(",") : ''
     },
     setNewAction() {
         if (this.debug) {

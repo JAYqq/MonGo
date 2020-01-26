@@ -41,6 +41,17 @@ import FollowMe from'@/components/Notification/FollowMe'
 import MessagesHistory from '@/components/Notification/Message/History'
 import MessagesIndex from '@/components/Notification/Message/Index'
 import RecivedMessages from '@/components/Notification/Message/List'
+
+// 管理后台
+import Admin from '@/components/Admin/Admin.vue'
+import AdminRoles from '@/components/Admin/Roles.vue'
+import AdminUsers from '@/components/Admin/Users.vue'
+import AdminPosts from '@/components/Admin/Posts.vue'
+import AdminComments from '@/components/Admin/Comments.vue'
+import AdminAddRole from '@/components/Admin/AddRole.vue'
+import AdminEditRole from '@/components/Admin/EditRole.vue'
+import AdminEditUser from '@/components/Admin/EditUser.vue'
+
 Vue.use(Router)
 
 //邮件
@@ -147,6 +158,25 @@ const router = new Router({
       }
     },
     {
+      // 管理后台
+      path: '/admin',
+      component: Admin,
+      children: [
+        { path: '', component: AdminRoles },
+        { path: 'roles', name: 'AdminRoles', component: AdminRoles },
+        { path: 'add-role', name: 'AdminAddRole', component: AdminAddRole },
+        { path: 'users', name: 'AdminUsers', component: AdminUsers },
+        { path: 'posts', name: 'AdminPosts', component: AdminPosts },
+        { path: 'comments', name: 'AdminComments', component: AdminComments },
+        { path: 'edit-role/:id', name: 'AdminEditRole', component: AdminEditRole },
+        { path: 'edit-user/:id', name: 'AdminEditUser', component: AdminEditUser },
+      ],
+      meta: {
+        requiresAuth: true,
+        requiresAdmin: true
+      }
+    },
+    {
       path: '/ping',
       name: 'Ping',
       component: Ping
@@ -162,6 +192,7 @@ router.beforeEach((to,form,next) => {
   const token=window.localStorage.getItem('masonblog-token')
   if (token) {
     var payload = JSON.parse(atob(token.split('.')[1]))
+    var user_perms = payload.permissions.split(",")
   }
   if(to.matched.some(record => record.meta.requiresAuth) && (!token || token === null)){
     //1. 用户未登录，但想访问需要认证的相关路由时，跳转到 登录 页
@@ -187,6 +218,12 @@ router.beforeEach((to,form,next) => {
     //用户已登录，但又去访问 登录/注册/请求重置密码/重置密码 页面时不让他过去
     next({
       path:from.fullPath
+    })
+  }else if (to.matched.some(record => record.meta.requiresAdmin) && token && !user_perms.includes('admin')) {
+    // 5. 普通用户想在浏览器地址中直接访问 /admin ，提示他没有权限，并跳转到首页
+    Vue.toasted.error('403: Forbidden', { icon: 'fingerprint' })
+    next({
+      path: '/'
     })
   }else if(to.matched.length===0){
     Vue.toasted.error('404: NOT FOUND', { icon: 'fingerprint' })

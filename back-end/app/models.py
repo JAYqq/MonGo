@@ -572,6 +572,24 @@ class Role(PaginatedAPIMixin, db.Model):
         super(Role, self).__init__(**kwargs)
         if self.permissions is None:
             self.permissions = 0
+    
+    def to_dict(self):
+        data = {
+            'id': self.id,
+            'slug': self.slug,
+            'name': self.name,
+            'default': self.default,
+            'permissions': self.permissions,
+            '_links': {
+                'self': url_for('api.get_role', id=self.id)
+            }
+        }
+        return data
+
+    def from_dict(self, data):
+        for field in ['slug', 'name', 'permissions']:
+            if field in data:
+                setattr(self, field, data[field])
 
     @staticmethod
     def insert_roles():
