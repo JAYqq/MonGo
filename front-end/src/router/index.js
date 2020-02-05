@@ -36,11 +36,16 @@ import Notifications from '@/components/Notification/Notifications'
 import RecivedComments from '@/components/Notification/RecivedComments'
 import Likeme from '@/components/Notification/Likeme'
 import FollowMe from'@/components/Notification/FollowMe'
-
-//用户私信
 import MessagesHistory from '@/components/Notification/Message/History'
 import MessagesIndex from '@/components/Notification/Message/Index'
 import RecivedMessages from '@/components/Notification/Message/List'
+
+//用户资源
+import Resource from '@/components/Resources/Resource'
+import CommentsResource from '@/components/Resources/CommentsResource'
+import MessagesIndexResource from '@/components/Resources/Messages/Index'
+import SentMessagesResource from '@/components/Resources/Messages/List'
+import MessagesHistoryResource from '@/components/Resources/Messages/History'
 
 // 管理后台
 import Admin from '@/components/Admin/Admin.vue'
@@ -135,6 +140,29 @@ const router = new Router({
       }
     },
     {
+      // 用户的资源
+      path: '/resource',
+      component: Resource,
+      children: [
+        { path: '', component: UserPostsList },
+        { path: 'posts', name: 'PostsResource', component: UserPostsList },
+        { path: 'comments', name: 'CommentsResource', component: CommentsResource },
+        { 
+          path: 'messages', 
+          component: MessagesIndexResource,
+          children: [
+            // 默认匹配，你给哪些人发送过私信
+            { path: '', name: "MessagesIndexResource", component: SentMessagesResource },
+            // 与某个用户之间的全部历史对话记录
+            { path: 'history', name: "MessagesHistoryResource", component: MessagesHistoryResource }
+          ]
+        }
+      ],
+      meta: {
+        requiresAuth: true
+      }
+    },
+    {
       path:'/notifications',
       component:Notifications,
       children:[
@@ -190,11 +218,13 @@ const router = new Router({
 */
 router.beforeEach((to,form,next) => {
   const token=window.localStorage.getItem('masonblog-token')
+  console.log(to)
   if (token) {
     var payload = JSON.parse(atob(token.split('.')[1]))
     var user_perms = payload.permissions.split(",")
   }
   if(to.matched.some(record => record.meta.requiresAuth) && (!token || token === null)){
+    console.log("1")
     //1. 用户未登录，但想访问需要认证的相关路由时，跳转到 登录 页
     Vue.toasted.show('Please log in to access this page.', { icon: 'fingerprint' })
     next({
@@ -202,7 +232,7 @@ router.beforeEach((to,form,next) => {
       query:{redirect:to.fullPath}//添加重定向参数
     })
   }else if (token && !payload.confirmed && to.name != 'Unconfirmed') {
-    console.log(payload)
+    console.log("2")
     // 2. 用户刚注册，但是还没确认邮箱地址时，全部跳转到 认证提示 页面
     Vue.toasted.show('Please confirm your accout to access this page.', { icon: 'fingerprint' })
     next({
@@ -210,22 +240,26 @@ router.beforeEach((to,form,next) => {
       query: { redirect: to.fullPath }
     })
   } else if (token && payload.confirmed && to.name == 'Unconfirmed') {
+    console.log("3")
     // 3. 用户账户已确认，但又去访问 认证提示 页面时不让他过去
     next({
       path: '/'
     })
   }else if(token && (to.name == 'Login' || to.name == 'Register' || to.name == 'ResetPasswordRequest' || to.name == 'ResetPassword')){
+    console.log("3")
     //用户已登录，但又去访问 登录/注册/请求重置密码/重置密码 页面时不让他过去
     next({
       path:from.fullPath
     })
   }else if (to.matched.some(record => record.meta.requiresAdmin) && token && !user_perms.includes('admin')) {
+    console.log("4")
     // 5. 普通用户想在浏览器地址中直接访问 /admin ，提示他没有权限，并跳转到首页
     Vue.toasted.error('403: Forbidden', { icon: 'fingerprint' })
     next({
       path: '/'
     })
   }else if(to.matched.length===0){
+    console.log("5")
     Vue.toasted.error('404: NOT FOUND', { icon: 'fingerprint' })
     if(from.name){
       next({
@@ -237,6 +271,7 @@ router.beforeEach((to,form,next) => {
       })
     }
   }else{
+    console.log("6")
     next()
   }
 })

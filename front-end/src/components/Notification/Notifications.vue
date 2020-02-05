@@ -37,6 +37,7 @@
               <router-link v-bind:to="{ name: 'MessagesIndex' }" v-bind:active-class="'active g-color-primary--active g-bg-gray-light-v5--active'" class="d-block align-middle u-link-v5 g-color-text g-color-primary--hover g-bg-gray-light-v5--hover rounded g-pa-3">
                 <span class="u-icon-v1 g-color-gray-dark-v5 mr-2"><i class="icon-communication-154 u-line-icon-pro"></i></span>
                 Messages
+                <span v-if="notifications.unread_messages_count" class="u-label g-font-size-11 g-bg-pink g-rounded-20 g-px-8 g-ml-15">{{ notifications.unread_messages_count }}</span>
               </router-link>
             </li>
             <li class="g-py-3">
@@ -86,7 +87,8 @@ export default {
       notification_comment:"",
       notifications:{
          unread_recived_comments_count:0,
-         likes_count:0
+         likes_count:0,
+         unread_messages_count:0
       }
     }
   },
@@ -115,10 +117,15 @@ export default {
                   console.log("unread")
                   this.notifications.unread_recived_comments_count=notifications[i].payload
                   console.log("unread_rececomm"+this.notifications.unread_recived_comments_count)
-                  break;
+                  break
                 case "liked_commentOrpost_count":
                   this.notifications.likes_count=notifications[i].payload
                   console.log(notifications[i].payload)
+                  break
+                case "unread_messages_count":
+                  console.log("unread_messages_count:  "+response.data[i].payload)
+                  this.notifications.unread_messages_count=notifications[i].payload
+                  break
                 default:
                   break;
               }

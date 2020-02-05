@@ -80,12 +80,11 @@ export default {
       let total_notifications_count = 0 //总通知
       let unread_recived_comments_count = 0 //没有读过的评论
       let unread_recived_likes_count=0
+      let unread_messages_count=0;
       if(window.localStorage.getItem('masonblog-token')){
         const payload=JSON.parse(atob(window.localStorage.getItem('masonblog-token').split('.')[1]))
         const user_id=payload.user_id
-        console.log("xiixxi")
         setInterval(function(){
-          console.log("xiixxi")
           const path=`/users/${user_id}/notifications/?since=${since}`
           axios.get(path)
           .then((response)=>{
@@ -99,11 +98,15 @@ export default {
                 case "liked_commentOrpost_count":
                   unread_recived_likes_count=response.data[i].payload
                   break
+                case "unread_messages_count":
+                  console.log("unread_messages_count:  "+response.data[i].payload)
+                  unread_messages_count=response.data[i].payload
+                  break
               }
               since=response.data[i].timestamp
             }
             // console.log(unread_recived_comments_count)
-            total_notifications_count = unread_recived_comments_count+unread_recived_likes_count
+            total_notifications_count = unread_recived_comments_count+unread_recived_likes_count+unread_messages_count
             $('#new_notifications_count').text(total_notifications_count)
             $('#new_notifications_count').css('visibility', total_notifications_count ? 'visible' : 'hidden');
           })

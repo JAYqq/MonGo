@@ -92,6 +92,7 @@ export default {
     }
   },
   created () {
+    console.log("unconfirmed email")
     // 点击邮件中的链接后，确认账户
     if (this.$route.query.token) {
       this.onConfirm(this.$route.query.token)

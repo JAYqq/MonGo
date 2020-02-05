@@ -110,7 +110,7 @@ export default {
         // 表单验证没通过时，不继续往下执行，即不会通过 axios 调用后端API
         return false;
       }
-      const path = "users";
+      const path = "/users";
       const payload = {
         confirm_email_base_url: window.location.href.split('/', 4).join('/') + '/unconfirmed/?token=',
         username: this.registerForm.username,

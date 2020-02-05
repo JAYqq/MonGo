@@ -24,7 +24,7 @@ def create_message():
     message.from_dict(data)
     message.sender = g.current_user
     message.recipient = user
-    user.add_notification('unread_messages_count',
+    user.add_new_notification('unread_messages_count',
                           user.new_recived_messages())
     db.session.add(message)
     db.session.commit()
