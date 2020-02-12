@@ -2,11 +2,15 @@ import re
 from flask import request, jsonify, url_for,g,current_app
 from datetime import datetime
 from app.extensions import db
+from operator import itemgetter
 from app.api import bp
 #from app.api.auth import token_auth
 from app.api.errors import bad_request,error_response
-from app.models import User,Post,Comment,Notification
+from app.models import User,Post,Comment,Notification,Message
 from app.api.auth import token_auth
+from app.utils.email import send_email
+from app.models import Permission
+from app.utils.decorator import permission_required
 
 @bp.route('/users', methods=['POST'])
 def create_user():
@@ -37,6 +41,38 @@ def create_user():
     user.from_dict(data, new_user=True)
     db.session.add(user)
     db.session.commit()
+
+    token = user.generate_confirm_jwt()
+    if not data.get('confirm_email_base_url'):
+        confirm_url = 'http://193.112.112.145:5000/api/confirm/' + token
+    else:
+        confirm_url = data.get('confirm_email_base_url') + token
+
+    text_body = '''
+    Dear {},
+    Welcome to Mongoblog!
+    To confirm your account please click on the following link: {}
+    Sincerely,
+    The Madblog Team
+    Note: replies to this email address are not monitored.
+    '''.format(user.username, confirm_url)
+
+    html_body = '''
+    <p>Dear {0},</p>
+    <p>Welcome to <b>Madblog</b>!</p>
+    <p>To confirm your account please <a href="{1}">click here</a>.</p>
+    <p>Alternatively, you can paste the following link in your browser's address bar:</p>
+    <p><b>{1}</b></p>
+    <p>Sincerely,</p>
+    <p>The Madblog Team</p>
+    <p><small>Note: replies to this email address are not monitored.</small></p>
+    '''.format(user.username, confirm_url)
+
+    send_email('[MongoBlog] Confirm Your Account',
+               sender=current_app.config['MAIL_SENDER'],
+               recipients=[user.email],
+               text_body=text_body,
+               html_body=html_body)
     response = jsonify(user.to_dict())
     response.status_code = 201
     # HTTP协议要求201响应包含一个值为新资源URL的Location头部
@@ -44,6 +80,68 @@ def create_user():
 
     return response
     
+
+@bp.route('/resend-confirm', methods=['POST'])
+@token_auth.login_required
+def resend_confirmation():
+    '''重新发送确认账户的邮件'''
+    data = request.get_json()
+    if not data:
+        return bad_request('You must post JSON data.')
+    if 'confirm_email_base_url' not in data or not data.get('confirm_email_base_url').strip():
+        return bad_request('Please provide a valid confirm email base url.')
+
+    token = g.current_user.generate_confirm_jwt()
+
+    text_body = '''
+    Dear {},
+    Welcome to Madblog!
+    To confirm your account please click on the following link: {}
+    Sincerely,
+    The Madblog Team
+    Note: replies to this email address are not monitored.
+    '''.format(g.current_user.username, data.get('confirm_email_base_url') + token)
+
+    html_body = '''
+    <p>Dear {0},</p>
+    <p>Welcome to <b>Madblog</b>!</p>
+    <p>To confirm your account please <a href="{1}">click here</a>.</p>
+    <p>Alternatively, you can paste the following link in your browser's address bar:</p>
+    <p><b>{1}</b></p>
+    <p>Sincerely,</p>
+    <p>The Madblog Team</p>
+    <p><small>Note: replies to this email address are not monitored.</small></p>
+    '''.format(g.current_user.username, data.get('confirm_email_base_url') + token)
+
+    print("****************",current_app.config['MAIL_SENDER'])
+    send_email('[Madblog] Confirm Your Account',
+               sender=current_app.config['MAIL_SENDER'],
+               recipients=[g.current_user.email],
+               text_body=text_body,
+               html_body=html_body)
+    return jsonify({
+        'status': 'success',
+        'message': 'A new confirmation email has been sent to you by email.'
+    })
+
+@bp.route('/confirm/<token>', methods=['GET'])
+@token_auth.login_required
+def confirm(token):
+    '''用户收到验证邮件后，验证其账户'''
+    if g.current_user.confirmed:
+        return bad_request('You have already confirmed your account.')
+    if g.current_user.verify_confirm_jwt(token):
+        g.current_user.ping()
+        db.session.commit()
+        # 给用户发放新 JWT，因为要包含 confirmed: true
+        token = g.current_user.get_jwt()
+        return jsonify({
+            'status': 'success',
+            'message': 'You have confirmed your account. Thanks!',
+            'token': token
+        })
+    else:
+        return bad_request('The confirmation link is invalid or has expired.')
 
 @bp.route('/users', methods=['GET'])
 @token_auth.login_required
@@ -90,7 +188,6 @@ def update_user(id):
     if 'email' in data and not data['email']!=user.email and \
             user.query.filter_by(email=data['email']).first():
         message['email']="Please use a different email address."
-    
     if message:
         return bad_request(message)
     user.from_dict(data,new_user=False)
@@ -99,6 +196,7 @@ def update_user(id):
 
 @bp.route('/follow/<int:id>',methods=['GET'])
 @token_auth.login_required
+@permission_required(Permission.FOLLOW)
 def follow(id):
     '''开始关注用户'''
     user=User.query.get_or_404(id)
@@ -116,6 +214,7 @@ def follow(id):
 
 @bp.route('/unfollow/<int:id>')
 @token_auth.login_required
+@permission_required(Permission.FOLLOW)
 def unfollow(id):
     '''取消关注用户'''
     user=User.query.get_or_404(id)
@@ -203,7 +302,7 @@ def get_user_posts(id):
 def delete_user(id):
     '''删除一个用户'''
     user=User.query.get_or_404(id)
-    if g.current_user != user:
+    if g.current_user != user and not g.current_user.can(Permission.ADMIN):
         return error_response(403)
     db.session.delete(user)
     db.session.commit()
@@ -250,9 +349,15 @@ def get_user_notification(id):
         return error_response(403)
     since=request.args.get('since',0.0,type=float)
     notifications=user.notification.filter(Notification.timestamp>since).order_by(Notification.timestamp.asc())
+    print('----')
+    print(since)
+    print([n.to_dict()for n in notifications])
     return jsonify([n.to_dict()for n in notifications])
 
+
+#获取用户收到的喜欢
 @bp.route("/users/<int:id>/likes/",methods=["GET"])
+@token_auth.login_required
 def get_user_post_likes(id):
     page=request.args.get('page',1,type=int)
     per_page=min(
@@ -276,6 +381,118 @@ def get_user_post_likes(id):
         user.add_new_notification("liked_commentOrpostcount",num)
     user.last_received_likes_read_time=datetime.utcnow()
     db.session.commit()
+    return jsonify(data)
+
+@bp.route('/users/<int:id>/messages-recipients/', methods=['GET'])
+@token_auth.login_required
+def get_user_messages_recipients(id):
+    '''我给哪些用户发过私信，按用户分组，返回我给各用户最后一次发送的私信
+    即: 我给 (谁) 最后一次 发了 (什么私信)'''
+    user = User.query.get_or_404(id)
+    if g.current_user != user:
+        return error_response(403)
+    page = request.args.get('page', 1, type=int)
+    per_page = min(
+        request.args.get(
+            'per_page', current_app.config['MESSAGES_PER_PAGE'], type=int), 100)
+    data = Message.to_collection_dict(
+        user.messages_sent.group_by(Message.recipient_id).order_by(Message.timestamp.desc()), page, per_page,
+        'api.get_user_messages_recipients', id=id)
+    # 我给每个用户发的私信，他们有没有未读的
+    for item in data['items']:
+        # 发给了谁
+        recipient = User.query.get(item['recipient']['id'])
+        # 总共给他发过多少条
+        item['total_count'] = user.messages_sent.filter_by(recipient_id=item['recipient']['id']).count()
+        # 他最后一次查看收到的私信的时间
+        last_read_time = recipient.last_messages_read_time or datetime(1900, 1, 1)
+        # item 是发给他的最后一条，如果最后一条不是新的，肯定就没有啦
+        if item['timestamp'] > last_read_time:
+            item['is_new'] = True
+            # 继续获取发给这个用户的私信有几条是新的
+            item['new_count'] = user.messages_sent.filter_by(recipient_id=item['recipient']['id']).filter(Message.timestamp > last_read_time).count()
+    return jsonify(data)
+
+@bp.route('/users/<int:id>/messages-senders/', methods=['GET'])
+@token_auth.login_required
+def get_user_messages_senders(id):
+    '''哪些用户给我发过私信，按用户分组，返回各用户最后一次发送的私信
+    即: (谁) 最后一次 给我发了 (什么私信)'''
+    user = User.query.get_or_404(id)
+    if g.current_user != user:
+        return error_response(403)
+    page = request.args.get('page', 1, type=int)
+    per_page = min(
+        request.args.get(
+            'per_page', current_app.config['MESSAGES_PER_PAGE'], type=int), 100)
+    data = Message.to_collection_dict(
+        user.messages_received.group_by(Message.sender_id).order_by(Message.timestamp.desc()), page, per_page,
+        'api.get_user_messages_senders', id=id)
+    # 这个用户发给我的私信有没有新的
+    last_read_time = user.last_messages_read_time or datetime(1900, 1, 1)
+    new_items = []  # 最后一条是新的
+    not_new_items = []  # 最后一条不是新的
+    for item in data['items']:
+        # item 是他发的最后一条，如果最后一条不是新的，肯定就没有啦
+        if item['timestamp'] > last_read_time:
+            item['is_new'] = True
+            # 继续获取这个用户发的私信有几条是新的
+            item['new_count'] = user.messages_received.filter_by(sender_id=item['sender']['id']).filter(Message.timestamp > last_read_time).count()
+            new_items.append(item)
+        else:
+            not_new_items.append(item)
+    # 对那些最后一条是新的按 timestamp 正序排序，不然用户更新 last_messages_read_time 会导致时间靠前的全部被标记已读
+    new_items = sorted(new_items, key=itemgetter('timestamp'))
+    # user.last_messages_read_time=datetime.utcnow()
+    # user.add_new_notification("unread_messages_count",0)
+    data['items'] = new_items + not_new_items
+    return jsonify(data)
+
+@bp.route('/users/<int:id>/history-messages/', methods=['GET'])
+@token_auth.login_required
+def get_user_history_messages(id):
+    '''返回我与某个用户(由查询参数 from 获取)之间的所有私信记录'''
+    user = User.query.get_or_404(id)
+    if g.current_user != user:
+        return error_response(403)
+    page = request.args.get('page', 1, type=int)
+    per_page = min(
+        request.args.get(
+            'per_page', current_app.config['MESSAGES_PER_PAGE'], type=int), 100)
+    from_id = request.args.get('from', type=int)
+    if not from_id:  # 必须提供聊天的对方用户的ID
+        return bad_request('You must provide the user id of opposite site.')
+    # 对方发给我的
+    q1 = Message.query.filter(Message.sender_id == from_id, Message.recipient_id == id)
+    # 我发给对方的
+    q2 = Message.query.filter(Message.sender_id == id, Message.recipient_id == from_id)
+    # 按时间正序排列构成完整的对话时间线
+    history_messages = q1.union(q2).order_by(Message.timestamp)
+    data = Message.to_collection_dict(history_messages, page, per_page, 'api.get_user_history_messages', id=id)
+    # 现在这一页的 data['items'] 包含对方发给我和我发给对方的
+    # 需要创建一个新列表，只包含对方发给我的，用来查看哪些私信是新的
+    recived_messages = [item for item in data['items'] if item['sender']['id'] != id]
+    sent_messages = [item for item in data['items'] if item['sender']['id'] == id]
+    # 然后，标记哪些私信是新的
+    last_read_time = user.last_messages_read_time or datetime(1900, 1, 1)
+    new_count = 0
+    for item in recived_messages:
+        if item['timestamp'] > last_read_time:
+            item['is_new'] = True
+            new_count += 1
+    print("new message",new_count)
+    
+    if new_count > 0:
+        # 更新 last_messages_read_time 属性值为收到的私信列表最后一条(最近的)的时间
+        user.last_messages_read_time = recived_messages[-1]['timestamp']
+        db.session.commit()  # 先提交数据库，这样 user.new_recived_messages() 才会变化
+        # 更新用户的新私信通知的计数
+        user.add_new_notification('unread_messages_count', user.new_recived_messages())
+        db.session.commit()
+    # 最后，重新组合 data['items']，因为收到的新私信添加了 is_new 标记
+    messages = recived_messages + sent_messages
+    messages.sort(key=data['items'].index)  # 保持 messages 列表元素的顺序跟 data['items'] 一样
+    data['items'] = messages
     return jsonify(data)
     
     

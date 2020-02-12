@@ -110,8 +110,9 @@ export default {
         // 表单验证没通过时，不继续往下执行，即不会通过 axios 调用后端API
         return false;
       }
-      const path = "users";
+      const path = "/users";
       const payload = {
+        confirm_email_base_url: window.location.href.split('/', 4).join('/') + '/unconfirmed/?token=',
         username: this.registerForm.username,
         password: this.registerForm.password,
         email: this.registerForm.email
@@ -120,7 +121,7 @@ export default {
         .post(path, payload)
         .then((response) => {
           // store.setNewAction()
-          this.$toasted.success('Congratulations, you are now a registered user !',{icon:'fingerprint'})
+          this.$toasted.success('A confirmation email has been sent to you by email.',{icon:'fingerprint'})
           this.$router.push("/login")
         })
         .catch(error => {

@@ -78,13 +78,14 @@ export default {
             }
 
             const path="/tokens"
-            
+            console.log(this.loginForm.username+"----"+this.loginForm.password)
             this.$axios.post(path,{},{
                 auth:{
                     'username':this.loginForm.username,
                     'password':this.loginForm.password
                 }
             }).then((response) => {
+                console.log("success")
                 window.localStorage.setItem('masonblog-token',response.data.token)
                 // store.resetNotNewAction()
                 store.loginAction()
@@ -98,6 +99,7 @@ export default {
                     this.$router.push(this.$route.query.redirect)//query是参数，也就是url后面的 ?redirect=...
                 }
             }).catch((error) => {
+                console.log("errorlalala")
                 console.log(error)
                 if(error.response.status==401){
                     this.loginForm.usernameError='Invalid username or password.'

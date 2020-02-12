@@ -4,8 +4,15 @@ import router from './router'
 import store from './store'
 
 //基础配置
+/*
+if (process.env.NODE_ENV === 'production') {
+  axios.defaults.baseURL = 'http://www.madmalls.com:5000';
+} else {
+  axios.defaults.baseURL = 'http://192.168.80.1:5000';
+}
+ */
 axios.defaults.timeout=5000//超时时间
-axios.defaults.baseURL='http://localhost:5000/api'
+axios.defaults.baseURL='http://193.112.112.145:5000/api'
 
 //添加请求拦截器
 axios.interceptors.request.use(function(config){

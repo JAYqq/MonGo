@@ -18,6 +18,9 @@
           <li class="nav-item">
             <router-link to="/ping" class="nav-link">Ping</router-link>
           </li>
+          <li class="nav-item" v-if="sharedState.is_authenticated && sharedState.user_perms.includes('admin')">
+            <router-link to="/admin" class="nav-link">Admin</router-link>
+          </li>
         </ul>
         
         <form v-if="sharedState.is_authenticated" class="form-inline navbar-left mr-auto">
@@ -77,11 +80,13 @@ export default {
       let total_notifications_count = 0 //总通知
       let unread_recived_comments_count = 0 //没有读过的评论
       let unread_recived_likes_count=0
-      if(window.localStorage.getItem('masonblog-token')){
-        const payload=JSON.parse(atob(window.localStorage.getItem('masonblog-token').split('.')[1]))
-        const user_id=payload.user_id
-        setInterval(function(){
+      let unread_messages_count=0;
+      setInterval(function(){
+        if(window.localStorage.getItem('masonblog-token')){
+          const payload=JSON.parse(atob(window.localStorage.getItem('masonblog-token').split('.')[1]))
+          const user_id=payload.user_id
           const path=`/users/${user_id}/notifications/?since=${since}`
+          console.log(since)
           axios.get(path)
           .then((response)=>{
             console.log(response.data)
@@ -94,19 +99,23 @@ export default {
                 case "liked_commentOrpost_count":
                   unread_recived_likes_count=response.data[i].payload
                   break
+                case "unread_messages_count":
+                  console.log("unread_messages_count:  "+response.data[i].payload)
+                  unread_messages_count=response.data[i].payload
+                  break
               }
               since=response.data[i].timestamp
             }
             // console.log(unread_recived_comments_count)
-            total_notifications_count = unread_recived_comments_count+unread_recived_likes_count
+            total_notifications_count = unread_recived_comments_count+unread_recived_likes_count+unread_messages_count
             $('#new_notifications_count').text(total_notifications_count)
             $('#new_notifications_count').css('visibility', total_notifications_count ? 'visible' : 'hidden');
           })
           .catch((error)=>{
             console.error(error)
           })
-        },10000)
-      }
+        }
+      }, 4000)
     })
   }
 };

@@ -5,6 +5,8 @@ from app.api.auth import token_auth
 from flask import request,g,url_for,jsonify
 from app.api.errors import bad_request,error_response
 from flask import current_app
+from app.models import Permission
+from app.utils.decorator import permission_required
 @bp.route('/posts',methods=['GET'])
 def get_posts():
     '''返回文章集，分页表示'''
@@ -19,6 +21,7 @@ def get_posts():
 
 @bp.route('/posts',methods=['POST'])
 @token_auth.login_required
+@permission_required(Permission.WRITE)
 def create_post():
     '''创建文章'''
     data=request.get_json()
@@ -86,7 +89,7 @@ def update_post(id):
 def delete_post(id):
     '''删除文章'''
     post=Post.query.get_or_404(id)
-    if g.current_user!=post.author:
+    if g.current_user!=post.author and not g.current_user.can(Permission.ADMIN):
         return error_response(403)
     db.session.delete(post)
     db.session.commit()

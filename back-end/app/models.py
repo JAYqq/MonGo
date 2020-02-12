@@ -11,7 +11,7 @@ import jwt
 class PaginatedAPIMixin(object):#用户集合
     @staticmethod
     def to_collection_dict(query, page, per_page, endpoint, **kwargs):
-        resources = query.paginate(page, per_page, False)
+        resources = query.paginate(page, per_page)
         data = {
             'items': [item.to_dict() for item in resources.items],
             '_meta': {
@@ -53,6 +53,8 @@ class User(PaginatedAPIMixin, db.Model):
     last_received_comment_read_time=db.Column(db.DateTime())
     last_received_likes_read_time=db.Column(db.DateTime())
     last_messages_read_time=db.Column(db.DateTime())
+    role_id = db.Column(db.Integer, db.ForeignKey('roles.id'))
+    confirmed = db.Column(db.Boolean, default=False)
     # cascade 用于级联删除，当删除user时，该user下面的所有posts都会被级联删除
     posts=db.relationship('Post',backref='author',lazy="dynamic",cascade='all, delete-orphan')
     '''self.followeds是当前用户的关注的人
@@ -68,9 +70,10 @@ class User(PaginatedAPIMixin, db.Model):
     messages_sent = db.relationship('Message', foreign_keys='Message.sender_id',
                                     backref='sender', lazy='dynamic',
                                     cascade='all, delete-orphan')
-    message_rece=db.relationship('Message',foreign_keys='Message.recipient_id',
+    messages_received=db.relationship('Message',foreign_keys='Message.recipient_id',
                                     backref='recipient',lazy='dynamic',
                                     cascade='all,delete-orphan')
+    tasks = db.relationship('Task', backref='user', lazy='dynamic')
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -128,6 +131,17 @@ class User(PaginatedAPIMixin, db.Model):
         return Message.query.filter_by(recipient=self).filter(
             Message.timestamp > last_read_time).count()
 
+    def get_task_in_progress(self,name):
+        '''检查指定任务名的RQ任务是否还在运行中'''
+        return Task.query.filter_by(name=name, user=self, complete=False).first()
+
+    def launch_task(self, name, description, *args, **kwargs):
+        '''用户启动一个新的后台任务,name是指定什么任务类型，比如群发邮件、私信'''
+        rq_job = current_app.task_queue.enqueue('app.utils.tasks.' + name, *args, **kwargs)
+        task = Task(id=rq_job.get_id(), name=name, description=description, user=self)
+        db.session.add(task)
+        print("launch tasks")
+        return task
     
     #文章收到点赞(暂未开发)+发布评论的点赞
     def new_posts_like_info(self,page,per_page,endpoint,**kwargs):
@@ -233,6 +247,8 @@ class User(PaginatedAPIMixin, db.Model):
             'followed_posts_count':self.followed_posts.count(),
             'followeds_count':self.followeds.count(),
             'followers_count':self.followers.count(),
+            'role_name':self.role.name,
+            'confirmed':self.confirmed,
             '_links': {
                 'self': url_for('api.get_user', id=self.id),
                 'avatar':self.avatar(128),
@@ -246,24 +262,64 @@ class User(PaginatedAPIMixin, db.Model):
     
     #将前端发送过来的数据转换成user对象，因为我们只需要username、email、password
     #new_user如果为true就是新用户，如果不是的话就是用来修改用户的
+    #主要用于对用户信息的修改
     def from_dict(self, data, new_user=False):
-        for field in ['username', 'email','name','location','about_me']:
+        for field in ['username', 'email','name','location','about_me','confirmed','role_id']:
             if field in data:
                 setattr(self, field, data[field])
         if new_user and 'password' in data:
             self.set_password(data['password'])
+            # 新建用户时，给用户自动分配角色
+            if self.role is None:
+                print("hhhaaa")
+                if self.email in current_app.config['ADMINS']:
+                    self.role = Role.query.filter_by(slug='administrator').first()
+                else:
+                    self.role = Role.query.filter_by(default=True).first()
     
     def avatar(self,size):
         digest = md5(self.email.lower().encode('utf-8')).hexdigest()
         return 'https://www.gravatar.com/avatar/{}?d=identicon&s={}'.format(digest, size)
 
-    def get_jwt(self,expires_in=1000):
+    def generate_confirm_jwt(self, expires_in=3600):
+        '''生成确认账户的 JWT'''
+        now = datetime.utcnow()
+        payload = {
+            'confirm': self.id,
+            'exp': now + timedelta(seconds=expires_in),
+            'iat': now
+        }
+        return jwt.encode(
+            payload,
+            current_app.config['SECRET_KEY'],
+            algorithm='HS256').decode('utf-8')
+    def verify_confirm_jwt(self, token):
+        '''用户点击确认邮件中的URL后，需要检验 JWT，如果检验通过，则把新添加的 confirmed 属性设为 True'''
+        try:
+            payload = jwt.decode(
+                token,
+                current_app.config['SECRET_KEY'],
+                algorithms=['HS256'])
+        except (jwt.exceptions.ExpiredSignatureError,
+                jwt.exceptions.InvalidSignatureError,
+                jwt.exceptions.DecodeError) as e:
+            # Token过期，或被人修改，那么签名验证也会失败
+            return False
+        if payload.get('confirm') != self.id:
+            return False
+        self.confirmed = True
+        db.session.add(self)
+        return True
+    def get_jwt(self,expires_in=3600):
         now=datetime.utcnow()
+        print("----",self)
         payload={
             'user_id':self.id,
+            'confirmed': self.confirmed,
             'user_name':self.name if self.name else self.username,
             'user_avatar': base64.b64encode(self.avatar(24).
                                             encode('utf-8')).decode('utf-8'),
+            'permissions':self.role.get_permissions(),
             'exp':now+timedelta(seconds=expires_in),
             'iat':now
         }
@@ -283,6 +339,13 @@ class User(PaginatedAPIMixin, db.Model):
             return None
         return User.query.get(payload.get('user_id'))
 
+    def can(self, perm):
+        '''检查用户是否有指定的权限'''
+        return self.role is not None and self.role.has_permission(perm)
+    
+    def is_administrator(self):
+        '''检查用户是否为管理员'''
+        return self.can(Permission.ADMIN)
     def revoke_token(self):
         self.token_expiration=datetime.utcnow()-timedelta(seconds=1)
 
@@ -461,7 +524,7 @@ class Notification(db.Model):
     def __repr__(self):
         return '<Notification {}>'.format(self.id)
 
-class Message(db.Model):
+class Message(db.Model,PaginatedAPIMixin):
     __tablename__="messages"
     id=db.Column(db.Integer,primary_key=True)
     body=db.Column(db.Text)
@@ -491,6 +554,125 @@ class Message(db.Model):
                 setattr(self, field, data[field])
     def __repr__(self):
         return '<Message {}>'.format(self.id) 
+
+class Permission:
+    '''权限认证中的各种操作，对应二进制的位，比如
+    FOLLOW: 0b00000001，转换为十六进制为 0x01
+    COMMENT: 0b00000010，转换为十六进制为 0x02
+    WRITE: 0b00000100，转换为十六进制为 0x04
+    ...
+    ADMIN: 0b10000000，转换为十六进制为 0x80
+
+    中间还预留了第 4、5、6、7 共4位二进制位，以备后续增加操作权限
+    '''
+    # 关注其它用户的权限
+    FOLLOW = 0x01
+    # 发表评论、评论点赞与踩的权限
+    COMMENT = 0x02
+    # 撰写文章的权限
+    WRITE = 0x04
+    # 管理网站的权限(对应管理员角色)
+    ADMIN = 0x80
+class Role(PaginatedAPIMixin, db.Model):
+    __tablename__ = 'roles'
+    id = db.Column(db.Integer, primary_key=True)
+    slug = db.Column(db.String(255), unique=True)
+    name = db.Column(db.String(255))  # 角色名称
+    default = db.Column(db.Boolean, default=False, index=True)  # 当新增用户时，是否将当前角色作为默认角色赋予新用户
+    permissions = db.Column(db.Integer)  # 角色拥有的权限，各操作对应一个二进制位，能执行某项操作的角色，其位会被设为 1
+    users = db.relationship('User', backref='role', lazy='dynamic')
+
+    def __init__(self, **kwargs):
+        super(Role, self).__init__(**kwargs)
+        if self.permissions is None:
+            self.permissions = 0
+    
+    def to_dict(self):
+        data = {
+            'id': self.id,
+            'slug': self.slug,
+            'name': self.name,
+            'default': self.default,
+            'permissions': self.permissions,
+            '_links': {
+                'self': url_for('api.get_role', id=self.id)
+            }
+        }
+        return data
+
+    def from_dict(self, data):
+        for field in ['slug', 'name', 'permissions']:
+            if field in data:
+                setattr(self, field, data[field])
+
+    @staticmethod
+    def insert_roles():
+        '''应用部署时，应该主动执行此函数，添加以下角色
+        注意: 未登录的用户，可以浏览，但不能评论或点赞等
+        shutup:        0b0000 0000 (0x00) 用户被关小黑屋，收回所有权限
+        reader:        0b0000 0011 (0x03) 读者，可以关注别人、评论与点赞，但不能发表文章
+        author:        0b0000 0111 (0x07) 作者，可以关注别人、评论与点赞，发表文章
+        administrator: 0b1000 0111 (0x87) 超级管理员，拥有全部权限
+
+        以后如果要想添加新角色，或者修改角色的权限，修改 roles 数组，再运行函数即可
+        '''
+        roles = {
+            'shutup': ('小黑屋', ()),
+            'reader': ('读者', (Permission.FOLLOW, Permission.COMMENT)),
+            'author': ('作者', (Permission.FOLLOW, Permission.COMMENT, Permission.WRITE)),
+            'administrator': ('管理员', (Permission.FOLLOW, Permission.COMMENT, Permission.WRITE, Permission.ADMIN)),
+        }
+        default_role = 'reader'
+        for r in roles:  # r 是字典的键，比如 'reader'
+            role = Role.query.filter_by(slug=r).first()
+            if role is None:
+                role = Role(slug=r, name=roles[r][0])
+            role.reset_permissions()
+            for perm in roles[r][1]:
+                role.add_permission(perm)
+            role.default = (role.slug == default_role)
+            db.session.add(role)
+        db.session.commit()
+
+    def reset_permissions(self):
+        self.permissions = 0
+
+    def has_permission(self, perm):
+        return self.permissions & perm == perm
+
+    def add_permission(self, perm):
+        if not self.has_permission(perm):
+            self.permissions += perm
+
+    def remove_permission(self, perm):
+        if self.has_permission(perm):
+            self.permissions -= perm
+    
+    def get_permissions(self):
+        '''获取角色的具体操作权限列表'''
+        print("permission")
+        p = [(Permission.FOLLOW, 'follow'), (Permission.COMMENT, 'comment'), (Permission.WRITE, 'write'), (Permission.ADMIN, 'admin')]
+        # 过滤掉没有权限，注意不能用 for 循环，因为遍历列表时删除元素可能结果并不是你想要的，参考: https://segmentfault.com/a/1190000007214571
+        new_p = filter(lambda x: self.has_permission(x[0]), p)
+        return ','.join([x[1] for x in new_p])  # 用逗号拼接成str
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return '<Role {}>'.format(self.name)
+
+class Task(db.Model,PaginatedAPIMixin):
+    __tablename__="tasks"
+    #任务的id，使用任务生成的id  job.get_id()
+    id=db.Column(db.String(36),primary_key=True)
+    name=db.Column(db.String(128),index=True)
+    description=db.Column(db.String(128))
+    user_id=db.Column(db.Integer,db.ForeignKey('users.id'))
+    #任务是否已经完成
+    complete=db.Column(db.Boolean,default=False)
+    def __repr__(self):
+        return '<Task {}>'.format(self.id)
 ## body 字段有变化时，执行 on_changed_body() 方法
 db.event.listen(Post.body, 'set', Post.on_changed_body)
 
