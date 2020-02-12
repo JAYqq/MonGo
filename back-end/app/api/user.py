@@ -44,7 +44,7 @@ def create_user():
 
     token = user.generate_confirm_jwt()
     if not data.get('confirm_email_base_url'):
-        confirm_url = 'http://127.0.0.1:5000/api/confirm/' + token
+        confirm_url = 'http://193.112.112.145:5000/api/confirm/' + token
     else:
         confirm_url = data.get('confirm_email_base_url') + token
 
@@ -68,7 +68,7 @@ def create_user():
     <p><small>Note: replies to this email address are not monitored.</small></p>
     '''.format(user.username, confirm_url)
 
-    send_email('[Madblog] Confirm Your Account',
+    send_email('[MongoBlog] Confirm Your Account',
                sender=current_app.config['MAIL_SENDER'],
                recipients=[user.email],
                text_body=text_body,
@@ -188,7 +188,6 @@ def update_user(id):
     if 'email' in data and not data['email']!=user.email and \
             user.query.filter_by(email=data['email']).first():
         message['email']="Please use a different email address."
-    
     if message:
         return bad_request(message)
     user.from_dict(data,new_user=False)
@@ -350,9 +349,15 @@ def get_user_notification(id):
         return error_response(403)
     since=request.args.get('since',0.0,type=float)
     notifications=user.notification.filter(Notification.timestamp>since).order_by(Notification.timestamp.asc())
+    print('----')
+    print(since)
+    print([n.to_dict()for n in notifications])
     return jsonify([n.to_dict()for n in notifications])
 
+
+#获取用户收到的喜欢
 @bp.route("/users/<int:id>/likes/",methods=["GET"])
+@token_auth.login_required
 def get_user_post_likes(id):
     page=request.args.get('page',1,type=int)
     per_page=min(
@@ -438,6 +443,8 @@ def get_user_messages_senders(id):
             not_new_items.append(item)
     # 对那些最后一条是新的按 timestamp 正序排序，不然用户更新 last_messages_read_time 会导致时间靠前的全部被标记已读
     new_items = sorted(new_items, key=itemgetter('timestamp'))
+    # user.last_messages_read_time=datetime.utcnow()
+    # user.add_new_notification("unread_messages_count",0)
     data['items'] = new_items + not_new_items
     return jsonify(data)
 
@@ -474,6 +481,7 @@ def get_user_history_messages(id):
             item['is_new'] = True
             new_count += 1
     print("new message",new_count)
+    
     if new_count > 0:
         # 更新 last_messages_read_time 属性值为收到的私信列表最后一条(最近的)的时间
         user.last_messages_read_time = recived_messages[-1]['timestamp']

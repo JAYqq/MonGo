@@ -81,11 +81,12 @@ export default {
       let unread_recived_comments_count = 0 //没有读过的评论
       let unread_recived_likes_count=0
       let unread_messages_count=0;
-      if(window.localStorage.getItem('masonblog-token')){
-        const payload=JSON.parse(atob(window.localStorage.getItem('masonblog-token').split('.')[1]))
-        const user_id=payload.user_id
-        setInterval(function(){
+      setInterval(function(){
+        if(window.localStorage.getItem('masonblog-token')){
+          const payload=JSON.parse(atob(window.localStorage.getItem('masonblog-token').split('.')[1]))
+          const user_id=payload.user_id
           const path=`/users/${user_id}/notifications/?since=${since}`
+          console.log(since)
           axios.get(path)
           .then((response)=>{
             console.log(response.data)
@@ -113,8 +114,8 @@ export default {
           .catch((error)=>{
             console.error(error)
           })
-        },10000)
-      }
+        }
+      }, 4000)
     })
   }
 };

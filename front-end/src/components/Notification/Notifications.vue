@@ -106,7 +106,8 @@ export default {
         })
     },
     get_notifications(id){
-        const path=`/users/${id}/notifications/`
+        let since = 0
+        const path=`/users/${id}/notifications/?since=${since}`
         this.$axios.get(path)
         .then((response)=>{
             const notifications=response.data
@@ -127,8 +128,9 @@ export default {
                   this.notifications.unread_messages_count=notifications[i].payload
                   break
                 default:
-                  break;
+                  break
               }
+              since = response.data[i].timestamp
             }
         })
         .catch((error)=>{

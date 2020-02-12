@@ -14,7 +14,7 @@
         <h4 class="h6 g-font-weight-700 g-mb-20">Confirm</h4>
         <!-- Toggles Views -->
         <label class="form-check-inline u-check g-mr-20 mx-0 mb-0">
-          <input class="g-hidden-xs-up g-pos-abs g-top-0 g-right-0" id="confirmed" name="confirmed" type="checkbox" v-model="checked">
+          <input class="g-hidden-xs-up" id="confirmed" name="confirmed" type="checkbox" v-model="checked">
           <div class="u-check-icon-radio-v7">
             <i class="fa" data-check-icon="" data-uncheck-icon=""></i>
           </div>
@@ -28,7 +28,7 @@
         <div>
           <!-- Inline Radios -->
           <label v-for="(role, index) in roles.items" v-bind:key="index" class="form-check-inline u-check g-pl-25 ml-0 g-mr-25">
-            <input class="g-hidden-xs-up g-pos-abs g-top-0 g-left-0" name="role_id" type="radio" v-bind:id="role.id" v-bind:value="role.id" v-model="picked">
+            <input class="g-hidden-xs-up" name="role_id" type="radio" v-bind:id="role.id" v-bind:value="role.id" v-model="picked">
             <div class="u-check-icon-radio-v4 g-absolute-centered--y g-left-0 g-width-18 g-height-18">
               <i class="g-absolute-centered d-block g-width-10 g-height-10 g-bg-primary--checked"></i>
             </div>
@@ -98,7 +98,6 @@ export default {
         confirmed: this.checked,
         role_id: this.picked
       }
-
       this.$axios.put(path, payload)
         .then((response) => {
           // handle success

@@ -3,7 +3,8 @@ from app.api import bp
 from app.api.auth import token_auth
 from app.api.errors import error_response, bad_request
 from app.extensions import db
-from app.models import User, Message
+from app.models import User, Message,Task
+from app.utils.decorator import admin_required
 
 @bp.route('/messages/', methods=['POST'])
 @token_auth.login_required
@@ -34,7 +35,27 @@ def create_message():
     response.headers['Location'] = url_for('api.get_message', id=message.id)
     return response
 
-
+@bp.route('/send-messages/', methods=['POST'])
+@token_auth.login_required
+@admin_required
+def send_messages():
+    '''群发私信'''
+    if g.current_user.get_task_in_progress('send_messages'):  # 如果用户已经有同名的后台任务在运行中时
+        task=Task.query.first()
+        print(task)
+        db.session.delete(task)
+        db.session.commit()
+        return bad_request('上一个群发私信的后台任务尚未结束')
+    else:
+        data = request.get_json()
+        if not data:
+            return bad_request('You must post JSON data.')
+        if 'body' not in data or not data.get('body'):
+            return bad_request(message={'body': 'Body is required.'})
+        # 将 app.utils.tasks.send_messages 放入任务队列中
+        g.current_user.launch_task('send_messages', '正在群发私信...', kwargs={'user_id': g.current_user.id, 'body': data.get('body')})
+        return jsonify(message='正在运行群发私信后台任务')
+        
 @bp.route('/messages/', methods=['GET'])
 @token_auth.login_required
 def get_messages():

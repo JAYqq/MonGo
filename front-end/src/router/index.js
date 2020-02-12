@@ -19,7 +19,7 @@ import Following from '@/components/User/Settings/Following'
 
 //用户主页
 import Overview from '@/components/User/Settings/Overview'
-import Settings from '@/components/User/settings/settings'
+import Settings from '@/components/User/Settings/Settings'
 
 //用户文章列表
 import UserPostsList from '@/components/Post/UserPostsList'
@@ -57,10 +57,11 @@ import AdminAddRole from '@/components/Admin/AddRole.vue'
 import AdminEditRole from '@/components/Admin/EditRole.vue'
 import AdminEditUser from '@/components/Admin/EditUser.vue'
 
-Vue.use(Router)
-
 //邮件
 import Unconfirmed from '@/components/User/Auth/Unconfirmed'
+Vue.use(Router)
+
+
 //export 就是一个相当于导出一个模块，这边export那边import
 const router = new Router({
   routes: [

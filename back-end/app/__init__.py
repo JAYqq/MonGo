@@ -1,8 +1,11 @@
 from flask import Flask
 from app.api import bp as api_bp
 from app.extensions import cors,db,migrate,conn,mail
-# from redis import Redis
-# import rq
+from redis import Redis
+from logging.handlers import RotatingFileHandler
+import rq
+import os
+import logging
 def create_app(config_class=None):
     app = Flask(__name__)
     configure_app(app,config_class)
@@ -12,6 +15,7 @@ def create_app(config_class=None):
     configure_before_handlers(app)
     configure_after_handlers(app)
     configure_errorhandlers(app)
+    configure_logging(app)
     # app.config.from_object(config_class)
     # enable CORS
     # CORS(app)
@@ -28,8 +32,8 @@ def configure_app(app,config_class):
     # 不检查路由中最后是否有斜杠/
     app.url_map.strict_slashes=False
     #整合RQ任务
-    # app.redis = Redis.from_url(app.config['REDIS_URL'])
-    # app.task_queue = rq.Queue('mongoblog-tasks', connection=app.redis, default_timeout=3600)  # 设置任务队列中各任务的执行最大超时时间为 1 小时
+    app.redis = Redis.from_url(app.config['REDIS_URL'])
+    app.task_queue = rq.Queue('mongoblog-tasks', connection=app.redis, default_timeout=3600)  # 设置任务队列中各任务的执行最大超时时间为 1 小时
 
 
 def configure_blueprints(app):
@@ -49,7 +53,27 @@ def configure_extensions(app):
 def configure_before_handlers(app):
     '''Configures the before request handlers'''
     pass
-
+def configure_logging(app):
+    '''注册日志管理'''
+    if not app.debug and app.testing:
+        if app.config['LOG_TO_STDOUT']:
+            stream_handler=logging.StreamHandler()
+            stream_handler.setLevel(logging.INFO)
+            app.logger.addHandler(stream_handler)
+        else:
+            if not os.path.exists('logs'):
+                os.mkdir('logs')
+            '''当文件达到一定大小之后，RotatingFileHandler自动将当前日志文件改名，
+            然后创建一个新的同名日志文件继续输出'''
+            file_handler = RotatingFileHandler('logs/madblog.log',
+                                               maxBytes=10240, backupCount=10)
+            file_handler.setFormatter(logging.Formatter(
+                '%(asctime)s %(levelname)s: %(message)s '
+                '[in %(pathname)s:%(lineno)d]'))
+            file_handler.setLevel(logging.INFO)
+            app.logger.addHandler(file_handler)
+        app.logger.setLevel(logging.INFO)
+        app.logger.info('Flask API Startup')
 
 def configure_after_handlers(app):
     '''Configures the after request handlers'''

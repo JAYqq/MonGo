@@ -73,6 +73,7 @@ class User(PaginatedAPIMixin, db.Model):
     messages_received=db.relationship('Message',foreign_keys='Message.recipient_id',
                                     backref='recipient',lazy='dynamic',
                                     cascade='all,delete-orphan')
+    tasks = db.relationship('Task', backref='user', lazy='dynamic')
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -130,6 +131,17 @@ class User(PaginatedAPIMixin, db.Model):
         return Message.query.filter_by(recipient=self).filter(
             Message.timestamp > last_read_time).count()
 
+    def get_task_in_progress(self,name):
+        '''检查指定任务名的RQ任务是否还在运行中'''
+        return Task.query.filter_by(name=name, user=self, complete=False).first()
+
+    def launch_task(self, name, description, *args, **kwargs):
+        '''用户启动一个新的后台任务,name是指定什么任务类型，比如群发邮件、私信'''
+        rq_job = current_app.task_queue.enqueue('app.utils.tasks.' + name, *args, **kwargs)
+        task = Task(id=rq_job.get_id(), name=name, description=description, user=self)
+        db.session.add(task)
+        print("launch tasks")
+        return task
     
     #文章收到点赞(暂未开发)+发布评论的点赞
     def new_posts_like_info(self,page,per_page,endpoint,**kwargs):
@@ -235,6 +247,8 @@ class User(PaginatedAPIMixin, db.Model):
             'followed_posts_count':self.followed_posts.count(),
             'followeds_count':self.followeds.count(),
             'followers_count':self.followers.count(),
+            'role_name':self.role.name,
+            'confirmed':self.confirmed,
             '_links': {
                 'self': url_for('api.get_user', id=self.id),
                 'avatar':self.avatar(128),
@@ -248,8 +262,9 @@ class User(PaginatedAPIMixin, db.Model):
     
     #将前端发送过来的数据转换成user对象，因为我们只需要username、email、password
     #new_user如果为true就是新用户，如果不是的话就是用来修改用户的
+    #主要用于对用户信息的修改
     def from_dict(self, data, new_user=False):
-        for field in ['username', 'email','name','location','about_me']:
+        for field in ['username', 'email','name','location','about_me','confirmed','role_id']:
             if field in data:
                 setattr(self, field, data[field])
         if new_user and 'password' in data:
@@ -258,7 +273,6 @@ class User(PaginatedAPIMixin, db.Model):
             if self.role is None:
                 print("hhhaaa")
                 if self.email in current_app.config['ADMINS']:
-                    print("hhh")
                     self.role = Role.query.filter_by(slug='administrator').first()
                 else:
                     self.role = Role.query.filter_by(default=True).first()
@@ -647,6 +661,18 @@ class Role(PaginatedAPIMixin, db.Model):
 
     def __repr__(self):
         return '<Role {}>'.format(self.name)
+
+class Task(db.Model,PaginatedAPIMixin):
+    __tablename__="tasks"
+    #任务的id，使用任务生成的id  job.get_id()
+    id=db.Column(db.String(36),primary_key=True)
+    name=db.Column(db.String(128),index=True)
+    description=db.Column(db.String(128))
+    user_id=db.Column(db.Integer,db.ForeignKey('users.id'))
+    #任务是否已经完成
+    complete=db.Column(db.Boolean,default=False)
+    def __repr__(self):
+        return '<Task {}>'.format(self.id)
 ## body 字段有变化时，执行 on_changed_body() 方法
 db.event.listen(Post.body, 'set', Post.on_changed_body)
 
