@@ -130,17 +130,34 @@ class User(PaginatedAPIMixin, db.Model):
 
     
     #文章收到点赞(暂未开发)+发布评论的点赞
-    def new_posts_like_info(self):
+    def new_posts_like_info(self,page,per_page,endpoint,**kwargs):
         last_read_time =datetime(1900, 1, 1)
         all_liked_comments=db.session.query(Comment.body,comments_likes.c.timestamp,comments_likes.c.comment_id,comments_likes.c.user_id).outerjoin(Comment,Comment.id==comments_likes.c.comment_id).all()
         all_liked_posts=db.session.query(Post.title,posts_likes.c.user_id,posts_likes.c.post_id,posts_likes.c.timestamp).outerjoin(Post,Post.id==posts_likes.c.post_id).all()
+        # length=len(all_liked_comments)+len(all_liked_posts)
+        resources={}
+        resources['has_next']=True        
+        resources['has_prev']=True        
         data={
             "data":[],
-            "length":0
+            "length":0,
+            '_meta': {
+                'page': page, #当前页码
+                'per_page': per_page, #每页条数
+                'total_pages': 0, #总页数
+                'total_items': 0  #总条数
+            },
+            '_links': {
+                'self': url_for(endpoint, page=page, per_page=per_page,
+                                **kwargs),
+                'next': url_for(endpoint, page=page + 1, per_page=per_page,
+                                **kwargs) if resources['has_next'] else None,
+                'prev': url_for(endpoint, page=page - 1, per_page=per_page,
+                                **kwargs) if resources['has_prev'] else None
+            }
         }
         for item in all_liked_comments:
             comment=Comment.query.get(item.comment_id)
-            print(comment)
             if item.user_id!=self.id and comment.author_id==self.id:
                 print("in ",item.timestamp,"  ",last_read_time)
                 temdata={
@@ -155,7 +172,6 @@ class User(PaginatedAPIMixin, db.Model):
         
         for item in all_liked_posts:
             post=Post.query.get(item.post_id)
-            print(post.title)
             if item.user_id!=self.id and post.author_id==self.id:
                 tempdata={
                     "flag":"post_like",
@@ -167,9 +183,26 @@ class User(PaginatedAPIMixin, db.Model):
                     "timestamp":item.timestamp
                 }
                 data['data'].append(tempdata)
+        length=len(data['data'])
+        resources['total']=length
+        if length%per_page!=0:
+            resources['pages']=int(length/per_page)+1
+        else:
+            resources['pages']=length/per_page
+        if page==resources['pages']:
+            resources['has_next']=False
+        elif page==1:
+            resources['has_prev']=False
+
+        data['_meta']['total_items']=resources['total']
+        data['_meta']['total_pages']=resources['pages']
+
 
         #按照降序排列
         data['data'].sort(key=lambda k: k['timestamp'],reverse=True)
+
+        #按照page和per_page进行分片
+        data['data']=data['data'][(page-1)*per_page:page*per_page]
         return data
     def add_new_notification(self,name,data):
         '''用户增加通知'''
